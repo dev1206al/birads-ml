@@ -20,11 +20,14 @@ Arranque en producción:
 
 from __future__ import annotations
 
+import mimetypes
 import os
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 from predictor import Predictor
 

@@ -32,12 +32,12 @@ function App() {
   const vw = useViewportWidth();
   // Breakpoints:
   //   < 744          → incompatible (bloqueado)
-  //   744 – 1099     → tablet vertical (layout apilado, página scrollea)
-  //   >= 1100        → desktop (layout 2 columnas, paneles scrollean)
+  //   744 – 1099     → tablet (layout apilado, la PÁGINA scrollea)
+  //   >= 1100        → desktop (2 columnas, los PANELES scrollean)
   const isIncompatible = vw < 744;
   const isVertical     = vw < 1100;
   const sidebarW       = vw >= 1100 ? 420 : 360;
-  const navH           = vw >= 1100 ? 60 : 48;
+  const navH           = vw >= 1100 ? 60 : 44;
 
   // ─── Estados base ──────────────────────────────────────────────────
   const [activeView, setActiveView] = React.useState('analysis');
@@ -257,13 +257,10 @@ function App() {
         navH={navH}
       />
 
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: isVertical ? 'column' : 'row',
-        // minHeight:0 solo en desktop para permitir scroll interno de paneles
-        ...(isVertical ? {} : { minHeight: 0 }),
-      }}>
+      <div style={isVertical
+        ? { display: 'flex', flexDirection: 'column' }
+        : { flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0 }
+      }>
         {activeView === 'reference' ? (
           <ReferenceView T={T} lang={lang} onInfo={setModal} isVertical={isVertical} />
         ) : (

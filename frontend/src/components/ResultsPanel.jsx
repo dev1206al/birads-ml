@@ -69,13 +69,9 @@ function ResultsPanel({
     padding: isVertical ? '20px 16px 40px' : '26px 30px 32px',
     transition: 'background 0.3s',
   };
-  if (!isVertical) {
-    panelStyle.flex = 1;
-    panelStyle.overflowY = 'auto';
-    panelStyle.minHeight = 0;
-  }
 
   return (
+    <div style={isVertical ? {} : { flex: 1, overflowY: 'auto', minHeight: 0 }}>
     <div style={panelStyle}>
       {/* ─── Estado 1: vacío — guía de referencia ─────────────────────── */}
       {!results && !binaryResult && !loading && !error && (
@@ -86,7 +82,7 @@ function ResultsPanel({
       {loading && (
         <div
           style={{
-            flex: 1,
+            minHeight: isVertical ? 180 : 300,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -716,6 +712,7 @@ function ResultsPanel({
           </div>
         </React.Fragment>
       )}
+    </div>
     </div>
   );
 }

@@ -1,0 +1,163 @@
+/* ============================================================================
+   styles.css — Estilos globales del dashboard BI-RADS
+   ----------------------------------------------------------------------------
+   Aquí concentramos:
+     · Reset y tipografía base
+     · Animaciones reutilizables (spin, fadeIn, fadeUp, pulse, slideIn)
+     · Reglas específicas para impresión (export a PDF)
+     · Estilos del scrollbar
+   Mantenemos el resto del estilado dentro de cada componente React (inline styles)
+   porque dependen del tema activo (dark / light) y del color BI-RADS dinámico.
+   ============================================================================ */
+
+/* ─── Reset universal ────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ocupamos toda la altura disponible — el dashboard es full-viewport */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Usamos DM Sans como tipografía principal en toda la app */
+body {
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden; /* evitamos scroll del body; el panel derecho gestiona el suyo */
+}
+
+textarea,
+button,
+input {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Quitamos el outline por defecto — usamos box-shadow custom al hacer focus */
+textarea:focus,
+button:focus {
+  outline: none;
+}
+
+/* ─── Scrollbar discreto ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.2);
+  border-radius: 3px;
+}
+
+/* ─── Animaciones globales ──────────────────────────────────────────────────
+   Las usamos vía animation:<nombre> 0.Xs ease en los styles inline.        */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ─── Estilos para impresión ────────────────────────────────────────────────
+   Reservamos esto por si en el futuro queremos imprimir la vista actual
+   directamente (no la ventana de export PDF, que se abre aparte).           */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body,
+  #root {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+  #print-area {
+    display: block !important;
+    width: 100%;
+    padding: 0;
+  }
+  #print-area .p-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+/* ─── Grid responsivo para la vista de referencia BI-RADS ──────────────────
+   Usamos una clase CSS porque los media queries no son posibles con
+   inline styles. El componente ReferenceView usa esta clase en su grid.     */
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .ref-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ref-grid {
+    grid-template-columns: 1fr;
+  }
+}

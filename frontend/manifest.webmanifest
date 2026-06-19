@@ -1,6 +1,6 @@
 {
   "name": "Sistema ML de Apoyo BI-RADS",
-  "short_name": "Apoyo BI-RADS ML",
+  "short_name": "BI-RADS ML",
   "description": "Clasificación asistida de reportes mamográficos",
   "start_url": "/",
   "scope": "/",

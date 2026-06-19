@@ -26,6 +26,7 @@ function ResultsPanel({
   onOpenModal,
   onCopy,
   onExport,
+  isVertical,
 }) {
   // Componentes hijos que usamos aquí
   const BiradsReference = window.BiradsReference;
@@ -61,18 +62,21 @@ function ResultsPanel({
     return !!(second && second[1] >= 18 && Math.abs(first[0] - second[0]) >= 3);
   }, [results]);
 
+  const panelStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
+    padding: isVertical ? '20px 16px 40px' : '26px 30px 32px',
+    transition: 'background 0.3s',
+  };
+  if (!isVertical) {
+    panelStyle.flex = 1;
+    panelStyle.overflowY = 'auto';
+    panelStyle.minHeight = 0;
+  }
+
   return (
-    <div
-      style={{
-        flex: 1,
-        padding: '26px 30px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-        overflowY: 'auto',
-        transition: 'background 0.3s',
-      }}
-    >
+    <div style={panelStyle}>
       {/* ─── Estado 1: vacío — guía de referencia ─────────────────────── */}
       {!results && !binaryResult && !loading && !error && (
         <BiradsReference lang={lang} T={T} onInfo={onOpenModal} />

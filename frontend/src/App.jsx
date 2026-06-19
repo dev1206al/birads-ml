@@ -2,6 +2,17 @@
    App.jsx — Componente raíz que orquesta toda la aplicación
    ============================================================================ */
 
+// Hook para reactivar layout en resize
+function useViewportWidth() {
+  const [vw, setVw] = React.useState(() => window.innerWidth);
+  React.useEffect(() => {
+    const update = () => setVw(window.innerWidth);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return vw;
+}
+
 function App() {
   const Navbar         = window.Navbar;
   const InputPanel     = window.InputPanel;
@@ -17,8 +28,19 @@ function App() {
     accentColor: '#6366f1',
   } /*EDITMODE-END*/;
 
+  // ─── Viewport ──────────────────────────────────────────────────────
+  const vw = useViewportWidth();
+  // Breakpoints:
+  //   < 744          → incompatible (bloqueado)
+  //   744 – 1099     → tablet vertical (layout apilado, página scrollea)
+  //   >= 1100        → desktop (layout 2 columnas, paneles scrollean)
+  const isIncompatible = vw < 744;
+  const isVertical     = vw < 1100;
+  const sidebarW       = vw >= 1100 ? 420 : 360;
+  const navH           = vw >= 1100 ? 60 : 48;
+
   // ─── Estados base ──────────────────────────────────────────────────
-  const [activeView, setActiveView] = React.useState('analysis');  // 'analysis' | 'reference'
+  const [activeView, setActiveView] = React.useState('analysis');
   const [tweaks, setTweaks]   = React.useState(TWEAK_DEFAULTS);
   const [dark, setDark]       = React.useState(TWEAK_DEFAULTS.darkMode);
   const [lang, setLang]       = React.useState(TWEAK_DEFAULTS.defaultLang);
@@ -30,22 +52,47 @@ function App() {
   const [copied, setCopied]   = React.useState(false);
 
   // ─── Estados de modo y resultados ──────────────────────────────────
-  // mode: 'binary' (Opción 1, default) | 'proba' (Opción 2)
   const [mode, setMode]             = React.useState('binary');
-  const [binaryOption, setBinaryOption] = React.useState('B');  // 'A' | 'B'
+  const [binaryOption, setBinaryOption] = React.useState('B');
   const [modelKey, setModelKey]     = React.useState(undefined);
 
-  // results: probabilidades 5 clases  { '0':x, '1':x, ..., '5':x }
   const [results, setResults]       = React.useState(null);
-  // rawScores: scores del hiperplano LinearSVC { '1':float, ..., '5':float } | null
   const [rawScores, setRawScores]   = React.useState(null);
-  // probaDisplay: 'grid' | 'ranking' — controla si se muestra la rejilla o sólo el ranking
   const [probaDisplay, setProbaDisplay] = React.useState('grid');
-  // binaryResult: resultado binario  { prediction, class_name, confidence, ... }
   const [binaryResult, setBinaryResult] = React.useState(null);
   const [animated, setAnimated]     = React.useState(false);
 
   const T = makeTheme(dark);
+
+  // ─── Pantalla de dispositivo incompatible ──────────────────────────
+  if (isIncompatible) {
+    return (
+      <div style={{
+        minHeight: '100dvh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', background: T.bg, padding: 32,
+        fontFamily: T.fontUI,
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: 300 }}>
+          <img
+            src="assets/logos/logo-transparente-v2.svg"
+            width="52" height="52" alt="Logo"
+            style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.35))' }}
+          />
+          <h1 style={{
+            fontSize: 20, fontWeight: 800, color: T.text,
+            marginTop: 20, marginBottom: 12, letterSpacing: -0.4,
+          }}>
+            {lang === 'es' ? 'Dispositivo no compatible' : 'Device not supported'}
+          </h1>
+          <p style={{ fontSize: 14, color: T.textSub, lineHeight: 1.65 }}>
+            {lang === 'es'
+              ? 'Esta herramienta está optimizada para iPad, tablet o escritorio. Prueba en un dispositivo con pantalla más grande.'
+              : 'This tool is optimized for iPad, tablet, or desktop. Try on a device with a larger screen.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Comunicación con el host de Tweaks ────────────────────────────
   React.useEffect(() => {
@@ -119,7 +166,6 @@ function App() {
       if (mode === 'binary') {
         setBinaryResult(r);
       } else {
-        // r = { probabilities: {...}, rawScores: {...}|null, display: 'grid'|'ranking' }
         setResults(r.probabilities || r);
         setRawScores(r.rawScores || null);
         setProbaDisplay(r.display || 'grid');
@@ -193,7 +239,10 @@ function App() {
   // ─── Render ────────────────────────────────────────────────────────
   return (
     <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
+      // Desktop: altura fija, paneles scrollean internamente
+      // Tablet: altura mínima, la página entera scrollea
+      ...(isVertical ? { minHeight: '100dvh' } : { height: '100dvh' }),
+      display: 'flex', flexDirection: 'column',
       background: T.bg, fontFamily: T.fontUI,
       color: T.text, transition: 'background 0.3s, color 0.3s',
     }}>
@@ -204,11 +253,19 @@ function App() {
         onViewChange={setActiveView}
         onToggleDark={toggleDark}
         onToggleLang={toggleLang}
+        vw={vw}
+        navH={navH}
       />
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: isVertical ? 'column' : 'row',
+        // minHeight:0 solo en desktop para permitir scroll interno de paneles
+        ...(isVertical ? {} : { minHeight: 0 }),
+      }}>
         {activeView === 'reference' ? (
-          <ReferenceView T={T} lang={lang} onInfo={setModal} />
+          <ReferenceView T={T} lang={lang} onInfo={setModal} isVertical={isVertical} />
         ) : (
           <React.Fragment>
             <InputPanel
@@ -223,6 +280,8 @@ function App() {
               onRunDemo={runDemo}
               onLoadExample={loadExample}
               onClear={clearAll}
+              isVertical={isVertical}
+              sidebarW={sidebarW}
             />
 
             <ResultsPanel
@@ -240,6 +299,7 @@ function App() {
               onOpenModal={setModal}
               onCopy={handleCopy}
               onExport={handleExport}
+              isVertical={isVertical}
             />
           </React.Fragment>
         )}

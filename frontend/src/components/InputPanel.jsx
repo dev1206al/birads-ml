@@ -9,6 +9,7 @@ function InputPanel({
   binaryOption, onBinaryOptionChange,
   modelKey, onModelKeyChange,
   onAnalyze, onRunDemo, onLoadExample, onClear,
+  isVertical, sidebarW,
 }) {
   const handleKey = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onAnalyze();
@@ -62,12 +63,14 @@ function InputPanel({
 
   return (
     <div style={{
-      width: 420, flexShrink: 0,
-      borderRight: `1px solid ${T.panelBorder}`,
+      width: isVertical ? '100%' : sidebarW,
+      flexShrink: 0,
+      borderRight:  isVertical ? 'none'                     : `1px solid ${T.panelBorder}`,
+      borderBottom: isVertical ? `1px solid ${T.panelBorder}` : 'none',
       display: 'flex', flexDirection: 'column',
-      padding: '22px 26px 20px',
+      padding: isVertical ? '16px 16px 14px' : '22px 26px 20px',
       background: T.panel, transition: 'background 0.3s, border-color 0.3s',
-      boxShadow: T.dark ? 'none' : '2px 0 8px rgba(0,0,0,0.03)',
+      boxShadow: isVertical ? 'none' : (T.dark ? 'none' : '2px 0 8px rgba(0,0,0,0.03)'),
       fontFamily: T.fontUI,
     }}>
 
@@ -181,7 +184,7 @@ function InputPanel({
       )}
 
       {/* ─── Textarea ────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: isVertical ? undefined : 1, display: 'flex', flexDirection: 'column' }}>
         <label style={{
           fontSize: 11, fontWeight: 700, color: T.labelColor,
           textTransform: 'uppercase', letterSpacing: 0.7,
@@ -195,11 +198,14 @@ function InputPanel({
             ? 'Ingrese o pegue aquí el contenido del apartado Observaciones…'
             : 'Enter or paste the full Observations section here…'}
           style={{
-            flex: 1, resize: 'none', width: '100%',
+            flex: isVertical ? undefined : 1,
+            height: isVertical ? 140 : undefined,
+            resize: 'none', width: '100%',
             background: T.inputBg, border: `1px solid ${T.border}`,
             borderRadius: 10, padding: '13px 15px',
             fontSize: 14.5, lineHeight: 1.65, color: T.text,
-            minHeight: 160, transition: 'border-color 0.2s, box-shadow 0.2s, background 0.3s',
+            minHeight: isVertical ? undefined : 160,
+            transition: 'border-color 0.2s, box-shadow 0.2s, background 0.3s',
           }}
           onFocus={(e) => {
             e.target.style.borderColor = T.inputFocus;

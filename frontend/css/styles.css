@@ -19,18 +19,19 @@
   padding: 0;
 }
 
-/* Ocupamos toda la altura disponible — el dashboard es full-viewport */
+/* Base de altura — el scroll lo gestiona el layout (App.jsx) según viewport */
 html,
-body,
-#root {
-  height: 100%;
+body {
+  min-height: 100%;
   width: 100%;
 }
 
-/* Usamos DM Sans como tipografía principal en toda la app */
+#root {
+  min-height: 100%;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
-  overflow: hidden; /* evitamos scroll del body; el panel derecho gestiona el suyo */
 }
 
 textarea,
@@ -142,22 +143,32 @@ button:focus {
 }
 
 /* ─── Grid responsivo para la vista de referencia BI-RADS ──────────────────
-   Usamos una clase CSS porque los media queries no son posibles con
-   inline styles. El componente ReferenceView usa esta clase en su grid.     */
+   Breakpoints alineados con el layout general del dashboard:
+     >= 1100px  → 3 columnas (desktop)
+     < 1100px   → 2 columnas (tablet portrait/landscape)              */
 .ref-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1099px) {
   .ref-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 640px) {
-  .ref-grid {
-    grid-template-columns: 1fr;
+/* ─── Clases de utilidad responsive ─────────────────────────────────────── */
+.layout-scroll-wrapper {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1099px) {
+  .layout-scroll-wrapper {
+    overflow-y: visible;
+    flex: none;
+    min-height: auto;
   }
 }

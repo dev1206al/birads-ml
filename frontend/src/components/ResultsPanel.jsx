@@ -672,43 +672,44 @@ function ResultsPanel({
                 : 'Click any card to view the full clinical description'}
             </div>
 
-            {/* Exportar PDF */}
-            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
-              <button
-                onClick={onExport}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '11px 28px', borderRadius: 10,
-                  border: `1px solid ${T.border}`,
-                  background: T.dark ? 'rgba(255,255,255,0.05)' : T.card,
-                  color: T.textSub, fontSize: 13.5, fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: T.dark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
-                  transition: 'all 0.18s', flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = T.dark ? 'rgba(255,255,255,0.1)' : T.cardHover;
-                  e.currentTarget.style.color = T.text;
-                  e.currentTarget.style.borderColor = T.borderHover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = T.dark ? 'rgba(255,255,255,0.05)' : T.card;
-                  e.currentTarget.style.color = T.textSub;
-                  e.currentTarget.style.borderColor = T.border;
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
-                  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 10v3a1 1 0 001 1h8a1 1 0 001-1v-3" />
-                  <path d="M8 2v7M5 6l3 3 3-3" />
-                </svg>
-                {lang === 'es' ? 'Exportar como PDF' : 'Export as PDF'}
-              </button>
-            </div>
           </div>
 
           </React.Fragment>
           )}
+
+          {/* Exportar PDF — siempre visible cuando hay resultados */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={onExport}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '11px 28px', borderRadius: 10,
+                border: `1px solid ${T.border}`,
+                background: T.dark ? 'rgba(255,255,255,0.05)' : T.card,
+                color: T.textSub, fontSize: 13.5, fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: T.dark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
+                transition: 'all 0.18s', flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = T.dark ? 'rgba(255,255,255,0.1)' : T.cardHover;
+                e.currentTarget.style.color = T.text;
+                e.currentTarget.style.borderColor = T.borderHover;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = T.dark ? 'rgba(255,255,255,0.05)' : T.card;
+                e.currentTarget.style.color = T.textSub;
+                e.currentTarget.style.borderColor = T.border;
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 10v3a1 1 0 001 1h8a1 1 0 001-1v-3" />
+                <path d="M8 2v7M5 6l3 3 3-3" />
+              </svg>
+              {lang === 'es' ? 'Exportar como PDF' : 'Export as PDF'}
+            </button>
+          </div>
         </React.Fragment>
       )}
     </div>

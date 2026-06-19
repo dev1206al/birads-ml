@@ -5,43 +5,55 @@
    · copyResults()      — Copia resumen en texto plano al portapapeles
    ============================================================================ */
 
-/**
- * Genera un PDF clínico breve y lo abre en una nueva pestaña con autoprint.
- *
- * @param {object} opts
- *   text          — observaciones ingresadas (string)
- *   mode          — 'binary' | 'proba'
- *   binaryOption  — 'A' | 'B'
- *   modelKey      — clave del modelo actual
- *   binaryResult  — resultado binario { prediction, class_name, confidence, recall, specificity, f1, option } | null
- *   results       — distribución de probabilidades { '0':n, ..., '5':n } | null
- *   topCat        — número de categoría top en modo proba | null
- *   confidence    — { pct, color, labelEs, labelEn } | null
- *   lang          — 'es' | 'en'
- */
 window.exportToPDF = function exportToPDF(opts) {
   const {
-    text        = '',
-    mode        = 'proba',
+    text         = '',
+    mode         = 'proba',
     binaryOption = 'B',
-    modelKey    = 'mlp_1-2gramas',
+    modelKey     = 'mlp_1-2gramas',
     binaryResult = null,
-    results     = null,
-    topCat      = null,
-    confidence  = null,
-    lang        = 'es',
+    results      = null,
+    rawScores    = null,
+    probaDisplay = 'grid',
+    topCat       = null,
+    confidence   = null,
+    lang         = 'es',
   } = opts || {};
 
   const BIRADS = window.BIRADS;
   const es = lang === 'es';
+
+  // ── ID de reporte (6 dígitos) ──────────────────────────────────────────────
+  const reportId = Math.floor(100000 + Math.random() * 900000).toString();
+
   const date = new Date().toLocaleDateString(
     es ? 'es-MX' : 'en-US',
     { year: 'numeric', month: 'long', day: 'numeric' }
   );
 
-  // ── Sección resultado ────────────────────────────────────────────────────
+  // ── Etiquetas modelo / configuración ──────────────────────────────────────
+  const isLinearSVC = mode === 'proba' && (modelKey === 'lsvc_raw_1-2gramas' || probaDisplay === 'ranking');
+
+  let modeLabel, modelLabel;
+  if (mode === 'binary') {
+    const optLabel = binaryOption === 'A' ? 'BR1-2-3 vs BR4-5' : 'BR1-2 vs BR3-4-5';
+    modeLabel  = `${es ? 'Clasificación Binaria · Opción' : 'Binary Classification · Option'} ${binaryOption} (${optLabel})`;
+    modelLabel = binaryOption === 'A' ? 'LinearSVC · 1-2gramas' : 'LinearSVC · 1-grama';
+  } else {
+    modeLabel  = es ? 'Distribución BI-RADS' : 'BI-RADS Distribution';
+    modelLabel = isLinearSVC ? 'LinearSVC · scores (1-2gramas)' : 'MLP · 1-2gramas';
+  }
+
+  // ── Helper: formatear score con signo ─────────────────────────────────────
+  function fmtScore(s) {
+    if (s === null || s === undefined) return '—';
+    return (s > 0 ? '+' : '') + Number(s).toFixed(3);
+  }
+
+  // ── Sección resultado ─────────────────────────────────────────────────────
   let resultHtml = '';
 
+  // ── Modo binario ───────────────────────────────────────────────────────────
   if (mode === 'binary' && binaryResult) {
     const r = binaryResult;
     const isPos = r.prediction === 1;
@@ -76,51 +88,159 @@ window.exportToPDF = function exportToPDF(opts) {
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${metricCards}</div>`;
 
+  // ── Modo proba ─────────────────────────────────────────────────────────────
   } else if (mode === 'proba' && results && topCat !== null && BIRADS) {
     const d = BIRADS[topCat];
     if (d) {
-      const pct = results[topCat];
-      const cards = [0, 1, 2, 3, 4, 5].map((cat) => {
-        const bd = BIRADS[cat];
-        if (!bd) return '';
-        const p = results[cat];
-        const isTop = cat === topCat;
-        return `<div style="border-radius:9px;padding:12px 14px;border:1px solid ${isTop ? bd.color + '55' : '#e2e8f0'};background:${isTop ? bd.color + '10' : '#f8fafc'}">
-          <div style="font-size:11.5px;font-weight:700;color:${isTop ? bd.color : '#475569'};margin-bottom:4px">${bd.label}</div>
-          <div style="font-size:30px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:${isTop ? bd.color : '#1e293b'};line-height:1;letter-spacing:-1px">${p}<span style="font-size:13px;font-weight:400">%</span></div>
-          <div style="font-size:11px;color:#64748b;margin:4px 0 8px">${es ? bd.es : bd.en}</div>
-          <div style="height:3px;background:#e9ecef;border-radius:2px;overflow:hidden">
-            <div style="height:100%;background:${bd.color};width:${p}%;border-radius:2px"></div>
-          </div>
-        </div>`;
-      }).join('');
 
-      const confBar = confidence
-        ? `<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px">
-            <span style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;min-width:80px">${es ? 'Confianza ML' : 'ML Confidence'}</span>
-            <div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;background:${confidence.color};width:${confidence.pct}%;border-radius:3px"></div></div>
-            <span style="font-size:12px;font-weight:700;color:${confidence.color};min-width:70px;text-align:right">${es ? confidence.labelEs : confidence.labelEn} (${confidence.pct}%)</span>
-          </div>`
-        : '';
+      // ── LinearSVC: ranking por score, % solo como referencia ─────────────
+      if (isLinearSVC && rawScores) {
+        const topScore = rawScores[String(topCat)] ?? 0;
+        const maxAbsScore = Math.max(...[1,2,3,4,5].map(c => Math.abs(rawScores[String(c)] ?? 0)), 1);
 
-      resultHtml = `
-        <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:${d.color}0d;border:1px solid ${d.color}33;border-radius:10px;margin-bottom:14px">
-          <div>
-            <div style="font-size:9.5px;font-weight:700;color:${d.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">
-              ${es ? 'Categoría con mayor probabilidad' : 'Highest probability category'}
+        const ranked = [1,2,3,4,5]
+          .map(cat => ({ cat, score: rawScores[String(cat)] ?? null, pct: results[cat] || 0 }))
+          .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+
+        const rows = ranked.map(({ cat, score, pct }, idx) => {
+          const bd = BIRADS[cat];
+          if (!bd) return '';
+          const isTop = cat === topCat;
+          const barW = score !== null ? Math.round((Math.max(score, 0) / maxAbsScore) * 100) : 0;
+          const scoreNeg = score !== null && score < 0;
+          return `<tr style="background:${isTop ? bd.color + '0d' : 'transparent'}">
+            <td style="padding:7px 10px;font-weight:700;color:${isTop ? bd.color : '#94a3b8'};font-size:10px">#${idx + 1}</td>
+            <td style="padding:7px 10px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bd.color};margin-right:6px;vertical-align:middle;box-shadow:${isTop ? '0 0 6px ' + bd.color : 'none'}"></span>
+              <span style="font-weight:${isTop ? 700 : 500};color:${isTop ? '#0f172a' : '#475569'};font-size:11.5px">${bd.label} · ${es ? bd.es : bd.en}</span>
+            </td>
+            <td style="padding:7px 14px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:${isTop ? 800 : 400};color:${scoreNeg ? '#94a3b8' : (isTop ? bd.color : '#475569')}">${fmtScore(score)}</td>
+            <td style="padding:7px 16px;min-width:100px">
+              <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+                <div style="height:100%;background:${bd.color};width:${barW}%;border-radius:3px"></div>
+              </div>
+            </td>
+            <td style="padding:7px 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#94a3b8">${pct}%*</td>
+          </tr>`;
+        }).join('');
+
+        resultHtml = `
+          <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:${d.color}0d;border:1px solid ${d.color}33;border-radius:10px;margin-bottom:14px">
+            <div>
+              <div style="font-size:9.5px;font-weight:700;color:${d.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">
+                ${es ? 'Categoría con mayor score · LinearSVC' : 'Top score category · LinearSVC'}
+              </div>
+              <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.4px">${d.label} · ${es ? d.es : d.en}</div>
             </div>
-            <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.4px">${d.label} · ${es ? d.es : d.en}</div>
+            <div style="margin-left:auto;text-align:right">
+              <div style="font-size:10px;color:#64748b;margin-bottom:4px">Score</div>
+              <div style="font-size:32px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:${d.color};line-height:1;letter-spacing:-1px">${fmtScore(topScore)}</div>
+            </div>
           </div>
-          <div style="margin-left:auto;text-align:right">
-            <div style="font-size:36px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:${d.color};line-height:1;letter-spacing:-2px">${pct}<span style="font-size:16px;font-weight:400">%</span></div>
-            <div style="font-size:10px;color:#64748b;margin-top:2px">${es ? 'probabilidad' : 'probability'}</div>
+          <div style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
+            ${es ? 'Ranking del clasificador' : 'Classifier ranking'}
           </div>
-        </div>
-        ${confBar}
-        <div style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">
-          ${es ? 'Distribución completa' : 'Full distribution'}
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${cards}</div>`;
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="padding:7px 10px;text-align:left;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">#</th>
+                <th style="padding:7px 10px;text-align:left;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">${es ? 'Categoría' : 'Category'}</th>
+                <th style="padding:7px 14px;text-align:right;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Score</th>
+                <th style="padding:7px 10px;min-width:100px"></th>
+                <th style="padding:7px 10px;text-align:right;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">%*</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="font-size:9.5px;color:#94a3b8;margin-top:8px;line-height:1.55">
+            ${es
+              ? '* Los porcentajes son softmax normalizados sobre los scores — <strong style="color:#64748b">no son probabilidades calibradas</strong>. El score refleja la distancia al hiperplano de decisión: positivo = favorece la clase, negativo = la rechaza.'
+              : '* Percentages are softmax-normalized scores — <strong style="color:#64748b">not calibrated probabilities</strong>. Score reflects distance to the decision hyperplane: positive = favors the class, negative = rejects it.'}
+          </p>`;
+
+      // ── MLP: distribución completa (grid) + tabla de ranking ─────────────
+      } else {
+        const pct = results[topCat];
+
+        const confBar = confidence
+          ? `<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px">
+              <span style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;min-width:80px">${es ? 'Confianza ML' : 'ML Confidence'}</span>
+              <div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;background:${confidence.color};width:${confidence.pct}%;border-radius:3px"></div></div>
+              <span style="font-size:12px;font-weight:700;color:${confidence.color};min-width:70px;text-align:right">${es ? confidence.labelEs : confidence.labelEn} (${confidence.pct}%)</span>
+            </div>`
+          : '';
+
+        const cards = [0, 1, 2, 3, 4, 5].map((cat) => {
+          const bd = BIRADS[cat];
+          if (!bd) return '';
+          const p = results[cat];
+          const isTop = cat === topCat;
+          return `<div style="border-radius:9px;padding:12px 14px;border:1px solid ${isTop ? bd.color + '55' : '#e2e8f0'};background:${isTop ? bd.color + '10' : '#f8fafc'}">
+            <div style="font-size:11.5px;font-weight:700;color:${isTop ? bd.color : '#475569'};margin-bottom:4px">${bd.label}</div>
+            <div style="font-size:28px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:${isTop ? bd.color : '#1e293b'};line-height:1;letter-spacing:-1px">${p}<span style="font-size:12px;font-weight:400">%</span></div>
+            <div style="font-size:10.5px;color:#64748b;margin:4px 0 8px">${es ? bd.es : bd.en}</div>
+            <div style="height:3px;background:#e9ecef;border-radius:2px;overflow:hidden">
+              <div style="height:100%;background:${bd.color};width:${p}%;border-radius:2px"></div>
+            </div>
+          </div>`;
+        }).join('');
+
+        const ranked = [1, 2, 3, 4, 5]
+          .map(cat => ({ cat, pct: results[cat] || 0 }))
+          .sort((a, b) => b.pct - a.pct);
+
+        const rankRows = ranked.map(({ cat, pct: p }, idx) => {
+          const bd = BIRADS[cat];
+          if (!bd) return '';
+          const isTop = cat === topCat;
+          return `<tr style="background:${isTop ? bd.color + '0d' : 'transparent'}">
+            <td style="padding:7px 10px;font-weight:700;color:${isTop ? bd.color : '#94a3b8'};font-size:10px">#${idx + 1}</td>
+            <td style="padding:7px 10px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bd.color};margin-right:6px;vertical-align:middle;box-shadow:${isTop ? '0 0 6px ' + bd.color : 'none'}"></span>
+              <span style="font-weight:${isTop ? 700 : 500};color:${isTop ? '#0f172a' : '#475569'};font-size:11.5px">${bd.label} · ${es ? bd.es : bd.en}</span>
+            </td>
+            <td style="padding:7px 14px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:${isTop ? 800 : 400};color:${isTop ? bd.color : '#475569'}">${p}%</td>
+            <td style="padding:7px 16px;min-width:110px">
+              <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+                <div style="height:100%;background:${bd.color};width:${p}%;border-radius:3px"></div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+
+        resultHtml = `
+          <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:${d.color}0d;border:1px solid ${d.color}33;border-radius:10px;margin-bottom:14px">
+            <div>
+              <div style="font-size:9.5px;font-weight:700;color:${d.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">
+                ${es ? 'Categoría con mayor probabilidad' : 'Highest probability category'}
+              </div>
+              <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.4px">${d.label} · ${es ? d.es : d.en}</div>
+            </div>
+            <div style="margin-left:auto;text-align:right">
+              <div style="font-size:36px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:${d.color};line-height:1;letter-spacing:-2px">${pct}<span style="font-size:16px;font-weight:400">%</span></div>
+              <div style="font-size:10px;color:#64748b;margin-top:2px">${es ? 'probabilidad' : 'probability'}</div>
+            </div>
+          </div>
+          ${confBar}
+          <div style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">
+            ${es ? 'Distribución completa de probabilidades' : 'Full probability distribution'}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">${cards}</div>
+          <div style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
+            ${es ? 'Ranking del clasificador (BI-RADS 1–5)' : 'Classifier ranking (BI-RADS 1–5)'}
+          </div>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="padding:7px 10px;text-align:left;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">#</th>
+                <th style="padding:7px 10px;text-align:left;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">${es ? 'Categoría' : 'Category'}</th>
+                <th style="padding:7px 14px;text-align:right;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">${es ? 'Probabilidad' : 'Probability'}</th>
+                <th style="padding:7px 10px;min-width:110px"></th>
+              </tr>
+            </thead>
+            <tbody>${rankRows}</tbody>
+          </table>`;
+      }
     }
   }
 
@@ -128,18 +248,18 @@ window.exportToPDF = function exportToPDF(opts) {
     resultHtml = `<p style="color:#94a3b8;font-style:italic">${es ? 'Sin resultado disponible.' : 'No result available.'}</p>`;
   }
 
-  // ── Texto analizado ──────────────────────────────────────────────────────
+  // ── Texto analizado (sin max-height — muestra completo) ───────────────────
   const escapedText = (text || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const textSection = escapedText.trim()
-    ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;font-size:12px;line-height:1.7;color:#334155;white-space:pre-wrap;word-break:break-word;max-height:150px;overflow:hidden;font-family:'IBM Plex Mono',monospace">${escapedText}</div>`
+    ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;font-size:12px;line-height:1.7;color:#334155;white-space:pre-wrap;word-break:break-word;font-family:'IBM Plex Mono',monospace">${escapedText}</div>`
     : `<p style="color:#94a3b8;font-style:italic">${es ? 'Sin texto ingresado.' : 'No text entered.'}</p>`;
 
-  // ── HTML completo ────────────────────────────────────────────────────────
+  // ── HTML completo ──────────────────────────────────────────────────────────
   const logoSrc = (window.location.origin || '') + '/assets/logos/logo-pdf.png';
 
   const html = `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
-  <title>${es ? 'Reporte BI-RADS' : 'BI-RADS Report'} — ${date}</title>
+  <title>${es ? 'Reporte BI-RADS' : 'BI-RADS Report'} #${reportId}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -150,10 +270,11 @@ window.exportToPDF = function exportToPDF(opts) {
     .sec-label::after{content:'';flex:1;height:1px;background:#e2e8f0}
     .section{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9}
     .section:last-child{border-bottom:none}
+    table tr:not(:last-child) td{border-bottom:1px solid #f1f5f9}
   </style></head><body>
 
   <!-- § Encabezado -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1a3a6e;margin-bottom:22px">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #1a3a6e;margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="${logoSrc}" width="36" height="36" alt="Logo"
         style="display:block;flex-shrink:0;border-radius:8px"
@@ -166,7 +287,17 @@ window.exportToPDF = function exportToPDF(opts) {
         <div style="font-size:11.5px;color:#64748b;margin-top:2px">${es ? 'Reporte de Clasificación Asistida por IA' : 'AI-Assisted Classification Report'}</div>
       </div>
     </div>
-    <div style="text-align:right;font-size:11px;color:#94a3b8">${date}</div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#64748b;font-weight:600">${date}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:3px">${es ? 'Reporte' : 'Report'} #${reportId}</div>
+    </div>
+  </div>
+
+  <!-- § Barra modelo / configuración -->
+  <div style="display:flex;gap:20px;padding:8px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;font-size:10.5px;flex-wrap:wrap;align-items:center">
+    <div><span style="color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:9px;margin-right:5px">${es ? 'MODO' : 'MODE'}</span><span style="color:#1e293b;font-weight:600">${modeLabel}</span></div>
+    <span style="color:#e2e8f0">|</span>
+    <div><span style="color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:9px;margin-right:5px">${es ? 'MODELO' : 'MODEL'}</span><span style="color:#1e293b;font-weight:600">${modelLabel}</span></div>
   </div>
 
   <!-- § Advertencia clínica -->
@@ -194,13 +325,12 @@ window.exportToPDF = function exportToPDF(opts) {
   <!-- § Pie -->
   <div style="padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
     <p style="font-size:10px;color:#94a3b8">${es ? 'Sistema ML de Apoyo BI-RADS · Solo referencia clínica' : 'BI-RADS ML Support System · Clinical reference only'}</p>
-    <p style="font-size:10px;color:#94a3b8">${date}</p>
+    <p style="font-size:10px;color:#94a3b8">#${reportId}</p>
   </div>
 
   <script>window.onload=function(){setTimeout(function(){window.print()},350)}<\/script>
   </body></html>`;
 
-  // Abrir en nueva pestaña — fallback si está bloqueado
   try {
     const win = window.open('', '_blank');
     if (!win) throw new Error('blocked');
@@ -215,7 +345,6 @@ window.exportToPDF = function exportToPDF(opts) {
 
 /**
  * Copia un resumen en texto plano al portapapeles.
- * El primer argumento puede ser el objeto de distribución proba O un binaryResult.
  */
 window.copyResults = function copyResults(data, topCat, lang) {
   const BIRADS = window.BIRADS;
@@ -233,21 +362,17 @@ window.copyResults = function copyResults(data, topCat, lang) {
 
   let body = [];
 
-  // Detectar modo: binary result tiene `prediction`, proba result tiene claves '0'–'5'
   if (data && data.prediction !== undefined) {
-    // Binary
     const r = data;
-    const isPos = r.prediction === 1;
     body = [
       `${es ? 'Clasificación binaria · Opción' : 'Binary classification · Option'} ${r.option}`,
       `${es ? 'Resultado' : 'Result'}: ${r.class_name}`,
       `${es ? 'Confianza' : 'Confidence'}: ${r.confidence ?? '—'}%`,
-      ...(r.recall    != null ? [`${es ? 'Sensibilidad'  : 'Sensitivity'}: ${r.recall}%`]    : []),
+      ...(r.recall      != null ? [`${es ? 'Sensibilidad'  : 'Sensitivity'}: ${r.recall}%`]      : []),
       ...(r.specificity != null ? [`${es ? 'Especificidad' : 'Specificity'}: ${r.specificity}%`] : []),
-      ...(r.f1        != null ? [`F1-score: ${r.f1}%`]                                        : []),
+      ...(r.f1          != null ? [`F1-score: ${r.f1}%`]                                          : []),
     ];
   } else if (data && topCat !== null && BIRADS) {
-    // Proba
     const d = BIRADS[topCat];
     body = [
       `${es ? 'Categoría con mayor probabilidad' : 'Most probable category'}: ${d?.label} — ${es ? d?.es : d?.en} (${data[topCat]}%)`,

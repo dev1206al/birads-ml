@@ -182,6 +182,8 @@ function App() {
       modelKey: modelKey || 'mlp_1-2gramas',
       binaryResult,
       results,
+      rawScores,
+      probaDisplay,
       topCat,
       confidence,
       lang,

@@ -22,9 +22,9 @@ COPY frontend/ ./frontend/
 COPY models/   ./models/
 
 # Puerto que expone Gunicorn
-EXPOSE 8000
+EXPOSE 8001
 
 # Arrancar con Gunicorn desde la carpeta backend
 # -w 2  → 2 workers (adecuado para i7-11390H con 16GB)
 # --timeout 120 → tiempo extra para carga de modelos .pkl al arrancar
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8000", "--timeout", "120", "--chdir", "/app/backend", "app:app"]
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8001", "--timeout", "120", "--chdir", "/app/backend", "app:app"]

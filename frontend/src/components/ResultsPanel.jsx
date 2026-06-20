@@ -27,6 +27,7 @@ function ResultsPanel({
   onCopy,
   onExport,
   isVertical,
+  birads0Warning,
 }) {
   // Componentes hijos que usamos aquí
   const BiradsReference = window.BiradsReference;
@@ -110,6 +111,42 @@ function ResultsPanel({
           </div>
         </div>
       )}
+
+      {/* ─── Alerta BI-RADS 0 (evaluación incompleta detectada) ──────── */}
+      {(hasBinaryResult || hasResults) && birads0Warning && (() => {
+        const hard = birads0Warning === 'hard';
+        const bg     = hard ? 'rgba(220,38,38,0.07)' : 'rgba(217,119,6,0.08)';
+        const border = hard ? 'rgba(220,38,38,0.30)' : 'rgba(217,119,6,0.30)';
+        const color  = hard ? '#b91c1c' : '#92400e';
+        const title  = lang === 'es'
+          ? (hard ? 'Posible BI-RADS 0 detectado' : 'Posible evaluación incompleta')
+          : (hard ? 'Possible BI-RADS 0 detected' : 'Possible incomplete evaluation');
+        const body = lang === 'es'
+          ? (hard
+              ? 'El texto menciona explícitamente BI-RADS 0. Esta categoría no forma parte del modelo predictivo (fue excluida del entrenamiento). La distribución 1–5 mostrada es orientativa y no sustituye completar la evaluación.'
+              : 'El texto contiene indicios compatibles con BI-RADS 0 (evaluación incompleta). Complete estudios adicionales o compare con estudios previos antes de interpretar la clasificación 1–5.')
+          : (hard
+              ? 'The text explicitly mentions BI-RADS 0. This category is not part of the predictive model (excluded from training). The 1–5 distribution shown is indicative and does not substitute completing the evaluation.'
+              : 'The text contains signs compatible with BI-RADS 0 (incomplete evaluation). Complete additional studies or compare with prior studies before interpreting the 1–5 classification.');
+        return (
+          <div style={{
+            padding: '11px 15px', borderRadius: 10, fontSize: 12.5,
+            background: bg, border: `1px solid ${border}`, color,
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            animation: 'slideIn 0.35s ease',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"
+              style={{ flexShrink: 0, marginTop: 1 }}>
+              <path d="M8 2L14 13H2L8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+              <line x1="8" y1="7" x2="8" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="8" cy="12" r="0.8" fill="currentColor"/>
+            </svg>
+            <span>
+              <strong>{title}</strong>{' — '}{body}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* ─── Estado 3a: resultado binario ─────────────────────────────── */}
       {hasBinaryResult && (
@@ -622,7 +659,7 @@ function ResultsPanel({
             </div>
           )}
 
-          {/* ─── Rejilla 3x2 de tarjetas ────────────────────────────────── */}
+          {/* ─── Rejilla de tarjetas BI-RADS 1–5 ───────────────────────── */}
           <div>
             <div
               style={{
@@ -635,8 +672,8 @@ function ResultsPanel({
               }}
             >
               {lang === 'es'
-                ? 'Distribución completa de probabilidades'
-                : 'Full probability distribution'}
+                ? 'Distribución de probabilidades BI-RADS 1–5'
+                : 'BI-RADS 1–5 probability distribution'}
             </div>
             <div
               style={{
@@ -645,7 +682,7 @@ function ResultsPanel({
                 gap: 11,
               }}
             >
-              {[0, 1, 2, 3, 4, 5].map((cat) => (
+              {[1, 2, 3, 4, 5].map((cat) => (
                 <ResultCard
                   key={cat}
                   cat={cat}

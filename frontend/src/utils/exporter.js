@@ -7,17 +7,18 @@
 
 window.exportToPDF = function exportToPDF(opts) {
   const {
-    text         = '',
-    mode         = 'proba',
-    binaryOption = 'B',
-    modelKey     = 'mlp_1-2gramas',
-    binaryResult = null,
-    results      = null,
-    rawScores    = null,
-    probaDisplay = 'grid',
-    topCat       = null,
-    confidence   = null,
-    lang         = 'es',
+    text          = '',
+    mode          = 'proba',
+    binaryOption  = 'B',
+    modelKey      = 'mlp_1-2gramas',
+    binaryResult  = null,
+    results       = null,
+    rawScores     = null,
+    probaDisplay  = 'grid',
+    topCat        = null,
+    confidence    = null,
+    lang          = 'es',
+    birads0Warning = null,
   } = opts || {};
 
   const BIRADS = window.BIRADS;
@@ -170,7 +171,7 @@ window.exportToPDF = function exportToPDF(opts) {
             </div>`
           : '';
 
-        const cards = [0, 1, 2, 3, 4, 5].map((cat) => {
+        const cards = [1, 2, 3, 4, 5].map((cat) => {
           const bd = BIRADS[cat];
           if (!bd) return '';
           const p = results[cat];
@@ -301,7 +302,7 @@ window.exportToPDF = function exportToPDF(opts) {
   </div>
 
   <!-- § Advertencia clínica -->
-  <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.28);border-radius:9px;margin-bottom:20px">
+  <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.28);border-radius:9px;margin-bottom:${birads0Warning ? '10px' : '20px'}">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><path d="M8 2L14 13H2L8 2Z" stroke="#b45309" stroke-width="1.4" stroke-linejoin="round"/><line x1="8" y1="7" x2="8" y2="10" stroke="#b45309" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="12" r="0.8" fill="#b45309"/></svg>
     <p style="font-size:11px;color:#92400e;line-height:1.55">${
       es
@@ -309,6 +310,13 @@ window.exportToPDF = function exportToPDF(opts) {
         : 'Clinical decision support tool. Final diagnosis must be issued by a certified radiologist. This does not replace specialist judgment.'
     }</p>
   </div>
+
+  ${birads0Warning ? `
+  <!-- § Alerta BI-RADS 0 -->
+  <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:${birads0Warning === 'hard' ? 'rgba(220,38,38,0.06)' : 'rgba(217,119,6,0.06)'};border:1px solid ${birads0Warning === 'hard' ? 'rgba(220,38,38,0.28)' : 'rgba(217,119,6,0.28)'};border-radius:9px;margin-bottom:20px">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><path d="M8 2L14 13H2L8 2Z" stroke="${birads0Warning === 'hard' ? '#b91c1c' : '#b45309'}" stroke-width="1.4" stroke-linejoin="round"/><line x1="8" y1="7" x2="8" y2="10" stroke="${birads0Warning === 'hard' ? '#b91c1c' : '#b45309'}" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="12" r="0.8" fill="${birads0Warning === 'hard' ? '#b91c1c' : '#b45309'}"/></svg>
+    <p style="font-size:11px;color:${birads0Warning === 'hard' ? '#991b1b' : '#92400e'};line-height:1.55"><strong>${es ? (birads0Warning === 'hard' ? 'Posible BI-RADS 0 detectado' : 'Posible evaluación incompleta') : (birads0Warning === 'hard' ? 'Possible BI-RADS 0 detected' : 'Possible incomplete evaluation')}:</strong> ${es ? (birads0Warning === 'hard' ? 'El texto menciona BI-RADS 0. Esta categoría no forma parte del modelo. La distribución 1–5 es orientativa.' : 'El texto contiene indicios de evaluación incompleta. Complete estudios adicionales antes de interpretar estos resultados.') : (birads0Warning === 'hard' ? 'The text mentions BI-RADS 0. This category is not part of the model. The 1–5 distribution is indicative only.' : 'The text contains signs of incomplete evaluation. Complete additional studies before interpreting these results.')}</p>
+  </div>` : ''}
 
   <!-- § Resultado -->
   <div class="section">
@@ -377,8 +385,8 @@ window.copyResults = function copyResults(data, topCat, lang) {
     body = [
       `${es ? 'Categoría con mayor probabilidad' : 'Most probable category'}: ${d?.label} — ${es ? d?.es : d?.en} (${data[topCat]}%)`,
       '',
-      `${es ? 'Distribución de probabilidades' : 'Probability distribution'}:`,
-      ...[0, 1, 2, 3, 4, 5].map(
+      `${es ? 'Distribución de probabilidades BI-RADS 1–5' : 'BI-RADS 1–5 probability distribution'}:`,
+      ...[1, 2, 3, 4, 5].map(
         (c) => `  ${BIRADS[c]?.label} (${es ? BIRADS[c]?.es : BIRADS[c]?.en}): ${data[c]}%`
       ),
     ];

@@ -210,7 +210,7 @@ function App() {
 
   // ─── Derivados ─────────────────────────────────────────────────────
   const topCat = results
-    ? Number(Object.entries(results).sort((a, b) => b[1] - a[1])[0][0])
+    ? Number(Object.entries(results).filter(([k]) => Number(k) >= 1 && Number(k) <= 5).sort((a, b) => b[1] - a[1])[0][0])
     : null;
 
   const canAnalyze = text.trim() && !loading;
@@ -219,6 +219,22 @@ function App() {
     results && !loading && topCat !== null
       ? window.getConfidence(results, topCat)
       : null;
+
+  // Detecta posible BI-RADS 0 en el texto ingresado
+  const birads0Warning = React.useMemo(() => {
+    if (!text.trim()) return null;
+    if (/bi[\s\-]?rads\s*0|birads\s*0/i.test(text)) return 'hard';
+    const lower = text.toLowerCase();
+    const softPhrases = [
+      'estudio incompleto', 'evaluación incompleta', 'evaluacion incompleta',
+      'imágenes adicionales', 'imagenes adicionales', 'proyecciones adicionales',
+      'comparar con estudios previos', 'estudios previos', 'estudio previo',
+      'ultrasonido complementario', 'ecografía complementaria', 'ecografia complementaria',
+      'se requiere ultrasonido', 'requieren imágenes', 'requieren imagenes',
+    ];
+    if (softPhrases.some((p) => lower.includes(p))) return 'soft';
+    return null;
+  }, [text]);
 
   const handleExport = () => {
     window.exportToPDF({
@@ -233,6 +249,7 @@ function App() {
       topCat,
       confidence,
       lang,
+      birads0Warning,
     });
   };
 
@@ -297,6 +314,7 @@ function App() {
               onCopy={handleCopy}
               onExport={handleExport}
               isVertical={isVertical}
+              birads0Warning={birads0Warning}
             />
           </React.Fragment>
         )}

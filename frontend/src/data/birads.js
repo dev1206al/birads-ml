@@ -35,6 +35,10 @@ window.BIRADS = {
       'Imágenes insuficientes o técnicamente inadecuadas. Puede requerir proyecciones adicionales (compresión, magnificación), ecografía complementaria o comparación con mamografías previas para emitir un diagnóstico definitivo.',
     findings_en:
       'Insufficient or technically inadequate imaging. May require additional projections (compression, magnification), complementary ultrasound, or comparison with prior mammograms to issue a definitive diagnosis.',
+    scope_note_es:
+      'Fuera del alcance del modelo predictivo. BI-RADS 0 indica evaluación incompleta y requiere estudios adicionales o comparación con estudios previos antes de asignar una categoría final.',
+    scope_note_en:
+      'Outside the predictive model scope. BI-RADS 0 indicates incomplete assessment and requires additional studies or prior study comparison before a final category is assigned.',
   },
 
   1: {
@@ -160,6 +164,33 @@ window.BIRADS = {
       'Masa espiculada de alta densidad, calcificaciones pleomórficas lineales o ramificadas agrupadas, distorsión arquitectural con centro denso, engrosamiento cutáneo focal, retracción del pezón, adenopatías axilares sospechosas. Hallazgos altamente sugestivos de carcinoma infiltrante.',
     findings_en:
       'High-density spiculated mass, grouped linear or branching pleomorphic calcifications, architectural distortion with dense center, focal skin thickening, nipple retraction, suspicious axillary lymph nodes. Findings highly suggestive of infiltrating carcinoma.',
+  },
+
+  6: {
+    color: '#7c3aed',
+    glow: 'rgba(124,58,237,0.22)',
+    label: 'BI-RADS 6',
+    es: 'Malignidad conocida',
+    en: 'Known malignancy',
+    short_es: 'Malignidad confirmada por biopsia. Fuera del alcance del modelo.',
+    short_en: 'Biopsy-confirmed malignancy. Outside model scope.',
+    desc_es:
+      'Malignidad confirmada histopatológicamente mediante biopsia previa. Se utiliza para evaluación de respuesta terapéutica o planificación de tratamiento, no para inferencia diagnóstica inicial.',
+    desc_en:
+      'Histopathologically confirmed malignancy via prior biopsy. Used for therapeutic response evaluation or treatment planning, not for initial diagnostic inference.',
+    risk_label_es: 'Conocida',
+    risk_label_en: 'Known',
+    risk_bar_pct: 100,
+    management_es: 'Seguimiento oncológico',
+    management_en: 'Oncologic follow-up',
+    findings_es:
+      'Malignidad ya documentada por biopsia. Esta categoría no aplica a inferencia inicial; requiere diagnóstico previo establecido.',
+    findings_en:
+      'Malignancy already documented by biopsy. This category does not apply to initial inference; requires a pre-established diagnosis.',
+    scope_note_es:
+      'Fuera del alcance de esta aplicación. BI-RADS 6 corresponde a malignidad ya confirmada por biopsia y se usa para seguimiento o planificación terapéutica, no para clasificación inicial desde observaciones radiológicas.',
+    scope_note_en:
+      'Outside the scope of this application. BI-RADS 6 corresponds to biopsy-confirmed malignancy used for follow-up or therapeutic planning, not for initial classification from radiological observations.',
   },
 };
 

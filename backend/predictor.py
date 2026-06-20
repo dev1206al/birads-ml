@@ -170,9 +170,10 @@ class Predictor:
                 except Exception:
                     pass
 
-        prob_map: dict[int, float] = {0: 0.0}
+        prob_map: dict[int, float] = {}
         for cls, p in zip(classes, proba_arr):
-            prob_map[cls] = float(p)
+            if int(cls) in (1, 2, 3, 4, 5):
+                prob_map[int(cls)] = float(p)
 
         pcts = {k: round(v * 100) for k, v in prob_map.items()}
         diff = 100 - sum(pcts.values())

@@ -14,12 +14,12 @@
 
 // Resultados mock para modo sin backend
 const MOCK_PROBA = {
-  probabilities: { '0': 0, '1': 2, '2': 5, '3': 8, '4': 18, '5': 67 },
+  probabilities: { '1': 2, '2': 5, '3': 8, '4': 18, '5': 67 },
   rawScores: null,
   display: 'grid',
 };
 const MOCK_PROBA_LSVC = {
-  probabilities: { '0': 0, '1': 18, '2': 42, '3': 11, '4': 14, '5': 15 },
+  probabilities: { '1': 18, '2': 42, '3': 11, '4': 14, '5': 15 },
   rawScores: { '1': -0.67, '2': 0.14, '3': -1.20, '4': -0.93, '5': -0.85 },
   display: 'ranking',
 };

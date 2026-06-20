@@ -21,7 +21,8 @@ function ReferenceView({ lang, T }) {
   };
 
   const B = window.BIRADS;
-  const CATS = [0, 1, 2, 3, 4, 5];
+  const CATS = [0, 1, 2, 3, 4, 5, 6];
+  const OUT_OF_SCOPE = new Set([0, 6]);
 
   // ── Escala de riesgo visual (solo categorías 1–5 en el gradiente) ──────────
   const RiskScale = () => {
@@ -77,7 +78,9 @@ function ReferenceView({ lang, T }) {
   // ── Tarjeta individual ─────────────────────────────────────────────────────
   const RefCard = ({ cat }) => {
     const d = B[cat];
+    if (!d) return null;
     const isExpanded = expandedCats.has(cat);
+    const isOutOfScope = OUT_OF_SCOPE.has(cat);
     const subcats = lang === 'es' ? d.subcats_es : d.subcats_en;
     const isNa = d.risk_bar_pct === null;
 
@@ -88,21 +91,26 @@ function ReferenceView({ lang, T }) {
         boxShadow: T.dark ? 'none' : '0 1px 8px rgba(0,0,0,0.05)',
         display: 'flex', flexDirection: 'column',
         transition: 'border-color 0.2s, box-shadow 0.2s',
+        opacity: isOutOfScope ? 0.88 : 1,
       }}
         onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = `${d.color}55`;
           e.currentTarget.style.boxShadow = `0 4px 20px ${d.glow}`;
+          e.currentTarget.style.opacity = '1';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.borderColor = T.border;
           e.currentTarget.style.boxShadow = T.dark ? 'none' : '0 1px 8px rgba(0,0,0,0.05)';
+          e.currentTarget.style.opacity = isOutOfScope ? '0.88' : '1';
         }}
       >
         {/* ── Encabezado de tarjeta ────────────────────────────────────── */}
         <div style={{
           padding: '18px 20px 14px',
           borderBottom: `1px solid ${T.border}`,
-          background: `${d.color}08`,
+          background: isOutOfScope
+            ? (T.dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)')
+            : `${d.color}08`,
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -128,19 +136,31 @@ function ReferenceView({ lang, T }) {
                 </div>
               </div>
             </div>
-            {/* Chip de riesgo */}
-            <div style={{
-              flexShrink: 0, padding: '3px 9px', borderRadius: 20,
-              background: isNa
-                ? (T.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
-                : `${d.color}18`,
-              border: `1px solid ${isNa ? T.border : d.color + '44'}`,
-              fontSize: 11, fontWeight: 700,
-              color: isNa ? T.textMuted : d.color,
-              letterSpacing: 0.2,
-            }}>
-              {lang === 'es' ? d.risk_label_es : d.risk_label_en}
-            </div>
+            {/* Chip: fuera del modelo o riesgo */}
+            {isOutOfScope ? (
+              <div style={{
+                flexShrink: 0, padding: '3px 9px', borderRadius: 20,
+                background: 'rgba(100,116,139,0.1)',
+                border: '1px solid rgba(100,116,139,0.28)',
+                fontSize: 11, fontWeight: 700, color: '#64748b',
+                letterSpacing: 0.2,
+              }}>
+                {lang === 'es' ? 'Fuera del modelo' : 'Outside model'}
+              </div>
+            ) : (
+              <div style={{
+                flexShrink: 0, padding: '3px 9px', borderRadius: 20,
+                background: isNa
+                  ? (T.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
+                  : `${d.color}18`,
+                border: `1px solid ${isNa ? T.border : d.color + '44'}`,
+                fontSize: 11, fontWeight: 700,
+                color: isNa ? T.textMuted : d.color,
+                letterSpacing: 0.2,
+              }}>
+                {lang === 'es' ? d.risk_label_es : d.risk_label_en}
+              </div>
+            )}
           </div>
 
           {/* Barra de riesgo */}
@@ -174,6 +194,18 @@ function ReferenceView({ lang, T }) {
 
         {/* ── Cuerpo: descripción + manejo ────────────────────────────── */}
         <div style={{ padding: '14px 20px', flex: 1 }}>
+          {/* Nota de alcance para categorías fuera del modelo */}
+          {isOutOfScope && (d.scope_note_es || d.scope_note_en) && (
+            <div style={{
+              marginBottom: 12, padding: '8px 12px', borderRadius: 8,
+              background: 'rgba(100,116,139,0.08)',
+              border: '1px solid rgba(100,116,139,0.2)',
+              fontSize: 12, color: T.textSub, lineHeight: 1.55,
+              fontStyle: 'italic',
+            }}>
+              {lang === 'es' ? d.scope_note_es : d.scope_note_en}
+            </div>
+          )}
           <p style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.6, marginBottom: 14 }}>
             {lang === 'es' ? d.desc_es : d.desc_en}
           </p>
@@ -284,8 +316,8 @@ function ReferenceView({ lang, T }) {
           </h2>
           <p style={{ fontSize: 13, color: T.textSub, lineHeight: 1.5 }}>
             {lang === 'es'
-              ? 'ACR Breast Imaging Reporting and Data System · 5ª Edición · Sistema de clasificación mamográfica'
-              : 'ACR Breast Imaging Reporting and Data System · 5th Edition · Mammographic classification system'}
+              ? 'ACR Breast Imaging Reporting and Data System · 5ª Edición · Categorías 0–6 · El modelo predice BI-RADS 1–5'
+              : 'ACR Breast Imaging Reporting and Data System · 5th Edition · Categories 0–6 · Model predicts BI-RADS 1–5'}
           </p>
         </div>
         <div style={{
@@ -300,19 +332,48 @@ function ReferenceView({ lang, T }) {
       {/* ── Escala de riesgo ──────────────────────────────────────────── */}
       <RiskScale />
 
-      {/* ── BI-RADS 0: tarjeta especial (fuera de la escala) ─────────── */}
+      {/* ── Sección 1: categorías del modelo (1–5) ───────────────────── */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ height: 1, flex: 1, background: T.border }} />
-        <span style={{ fontSize: 10.5, color: T.textFaint, fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
-          {lang === 'es' ? 'Categorías disponibles' : 'Available categories'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+          <span style={{
+            padding: '2px 8px', borderRadius: 4, fontSize: 9.5,
+            background: 'rgba(99,102,241,0.1)', color: '#6366f1', fontWeight: 700,
+          }}>
+            {lang === 'es' ? 'Cubierto por el modelo' : 'Covered by model'}
+          </span>
+          <span style={{ fontSize: 10.5, color: T.textFaint, fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            BI-RADS 1–5
+          </span>
+        </div>
         <div style={{ height: 1, flex: 1, background: T.border }} />
       </div>
 
-      {/* ── Grid de tarjetas ──────────────────────────────────────────── */}
-      <div className="ref-grid">
-        {CATS.map((cat) => <RefCard key={cat} cat={cat} />)}
+      <div className="ref-grid" style={{ marginBottom: 28 }}>
+        {[1, 2, 3, 4, 5].map((cat) => <RefCard key={cat} cat={cat} />)}
+      </div>
+
+      {/* ── Sección 2: fuera del alcance del modelo (0 y 6) ──────────── */}
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ height: 1, flex: 1, background: T.border }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+          <span style={{
+            padding: '2px 8px', borderRadius: 4, fontSize: 9.5,
+            background: 'rgba(100,116,139,0.1)', color: '#64748b', fontWeight: 700,
+          }}>
+            {lang === 'es' ? 'Fuera del alcance del modelo' : 'Outside model scope'}
+          </span>
+          <span style={{ fontSize: 10.5, color: T.textFaint, fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            BI-RADS 0 · 6
+          </span>
+        </div>
+        <div style={{ height: 1, flex: 1, background: T.border }} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
+        {[0, 6].map((cat) => <RefCard key={cat} cat={cat} />)}
       </div>
 
       {/* ── Pie de página ─────────────────────────────────────────────── */}

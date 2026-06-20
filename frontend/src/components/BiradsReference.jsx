@@ -44,6 +44,7 @@ function BiradsReference({ lang, T, onInfo }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {[1, 2, 3, 4, 5].map((cat) => {
             const d = window.BIRADS[cat];
+            if (!d) return null;
             return (
               <div
                 key={cat}
@@ -96,6 +97,7 @@ function BiradsReference({ lang, T, onInfo }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
           {[0, 6].map((cat) => {
             const d = window.BIRADS[cat];
+            if (!d) return null;
             return (
               <div
                 key={cat}

@@ -195,7 +195,7 @@ function BinaryResult({ result, lang, T, onExport }) {
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted,
           textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 0, minWidth: 80 }}>
-          {lang === 'es' ? 'Confianza' : 'Confidence'}
+          {lang === 'es' ? 'Confianza de clasificación' : 'Classification confidence'}
         </div>
         <div style={{ flex: 1, height: 5, background: T.barTrack,
           borderRadius: 3, overflow: 'hidden' }}>
@@ -211,32 +211,233 @@ function BinaryResult({ result, lang, T, onExport }) {
         </div>
       </div>
 
-      {/* ─── Métricas del modelo (en test) ─────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-        {[
-          { key: 'recall',      labelEs: 'Sensibilidad',  labelEn: 'Sensitivity',  color: '#6366f1' },
-          { key: 'specificity', labelEs: 'Especificidad', labelEn: 'Specificity',  color: '#0891b2' },
-          { key: 'f1',          labelEs: 'F1-score',      labelEn: 'F1-score',     color: '#7c3aed' },
-        ].map(({ key, labelEs, labelEn, color: mc }) => (
-          <div key={key} style={{
-            padding: '12px 14px', borderRadius: 10,
-            background: T.card, border: `1px solid ${T.border}`,
-            textAlign: 'center',
+      {/* ─── Resumen del grupo clasificado ─────────────────────────────── */}
+      {(() => {
+        const caseKey = `${result.option}${result.prediction}`;
+        const groups = {
+          es: {
+            B0: {
+              title: 'Sin hallazgos (BI-RADS 1-2)',
+              desc: 'Esta clasificación agrupa textos compatibles con ausencia de hallazgos significativos o hallazgos benignos.',
+              rows: [
+                { cat: 'BI-RADS 1', c: '#16a34a', name: 'Negativo',      note: 'sin hallazgos sospechosos.' },
+                { cat: 'BI-RADS 2', c: '#65a30d', name: 'Benigno',       note: 'hallazgos definitivamente benignos.' },
+              ],
+              mgmt: 'Seguimiento rutinario según criterio radiológico.',
+            },
+            B1: {
+              title: 'Con hallazgos (BI-RADS 3-4-5)',
+              desc: 'Esta clasificación agrupa textos con hallazgos que requieren seguimiento, evaluación adicional o intervención.',
+              rows: [
+                { cat: 'BI-RADS 3', c: '#d97706', name: 'Prob. benigno', note: 'seguimiento a corto plazo.' },
+                { cat: 'BI-RADS 4', c: '#ea580c', name: 'Sospechoso',    note: 'considerar biopsia.' },
+                { cat: 'BI-RADS 5', c: '#dc2626', name: 'Alt. Maligno',  note: 'requiere evaluación prioritaria.' },
+              ],
+              mgmt: 'Revisión por radiólogo y correlación clínica.',
+            },
+            A0: {
+              title: 'Benigno (BI-RADS 1-2-3)',
+              desc: 'Esta clasificación agrupa textos sin sospecha alta de malignidad.',
+              rows: [
+                { cat: 'BI-RADS 1', c: '#16a34a', name: 'Negativo',      note: 'sin hallazgos.' },
+                { cat: 'BI-RADS 2', c: '#65a30d', name: 'Benigno',       note: 'hallazgos definitivamente benignos.' },
+                { cat: 'BI-RADS 3', c: '#d97706', name: 'Prob. benigno', note: 'seguimiento recomendado.' },
+              ],
+              mgmt: 'Seguimiento rutinario o vigilancia corta según categoría final.',
+            },
+            A1: {
+              title: 'Sospechoso (BI-RADS 4-5)',
+              desc: 'Esta clasificación agrupa textos con hallazgos sospechosos o altamente sugestivos de malignidad.',
+              rows: [
+                { cat: 'BI-RADS 4', c: '#ea580c', name: 'Sospechoso',    note: 'biopsia a considerar.' },
+                { cat: 'BI-RADS 5', c: '#dc2626', name: 'Alta sospecha', note: 'evaluación prioritaria.' },
+              ],
+              mgmt: 'Confirmación por especialista.',
+            },
+          },
+          en: {
+            B0: {
+              title: 'No Findings (BI-RADS 1-2)',
+              desc: 'This classification groups texts compatible with the absence of significant findings or benign findings.',
+              rows: [
+                { cat: 'BI-RADS 1', c: '#16a34a', name: 'Negative', note: 'no suspicious findings.' },
+                { cat: 'BI-RADS 2', c: '#65a30d', name: 'Benign',   note: 'definitely benign findings.' },
+              ],
+              mgmt: 'Routine follow-up per radiological criteria.',
+            },
+            B1: {
+              title: 'With Findings (BI-RADS 3-4-5)',
+              desc: 'This classification groups texts with findings requiring follow-up, additional evaluation, or intervention.',
+              rows: [
+                { cat: 'BI-RADS 3', c: '#d97706', name: 'Prob. Benign',      note: 'short-term follow-up.' },
+                { cat: 'BI-RADS 4', c: '#ea580c', name: 'Suspicious',        note: 'consider biopsy.' },
+                { cat: 'BI-RADS 5', c: '#dc2626', name: 'Highly suspicious', note: 'priority evaluation required.' },
+              ],
+              mgmt: 'Radiologist review and clinical correlation.',
+            },
+            A0: {
+              title: 'Benign (BI-RADS 1-2-3)',
+              desc: 'This classification groups texts without high suspicion of malignancy.',
+              rows: [
+                { cat: 'BI-RADS 1', c: '#16a34a', name: 'Negative',     note: 'no findings.' },
+                { cat: 'BI-RADS 2', c: '#65a30d', name: 'Benign',       note: 'definitely benign findings.' },
+                { cat: 'BI-RADS 3', c: '#d97706', name: 'Prob. Benign', note: 'follow-up recommended.' },
+              ],
+              mgmt: 'Routine follow-up or short-term surveillance per final category.',
+            },
+            A1: {
+              title: 'Suspicious (BI-RADS 4-5)',
+              desc: 'This classification groups texts with suspicious or highly suggestive findings.',
+              rows: [
+                { cat: 'BI-RADS 4', c: '#ea580c', name: 'Suspicious',     note: 'biopsy to consider.' },
+                { cat: 'BI-RADS 5', c: '#dc2626', name: 'High suspicion', note: 'priority evaluation.' },
+              ],
+              mgmt: 'Specialist confirmation.',
+            },
+          },
+        };
+        const g = groups[lang === 'es' ? 'es' : 'en'][caseKey] || groups['es']['B0'];
+        return (
+          <div style={{
+            borderRadius: 12,
+            border: `1px solid ${color}2e`,
+            background: T.card,
+            boxShadow: T.dark ? 'none' : '0 1px 6px rgba(0,0,0,0.05)',
+            overflow: 'hidden',
+            animation: 'slideIn 0.45s ease',
           }}>
-            <div style={{ fontSize: 22, fontWeight: 800,
-              fontFamily: 'DM Mono, monospace', color: mc, lineHeight: 1 }}>
-              {animated ? (result[key] || 0) : 0}
-              <span style={{ fontSize: 13, fontWeight: 400 }}>%</span>
+            {/* Cabecera */}
+            <div style={{
+              padding: '9px 16px',
+              background: `${color}0a`,
+              borderBottom: `1px solid ${color}20`,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                background: color, boxShadow: `0 0 6px ${color}`,
+              }} />
+              <div style={{
+                fontSize: 10.5, fontWeight: 700, color: T.textMuted,
+                textTransform: 'uppercase', letterSpacing: 0.6,
+              }}>
+                {lang === 'es' ? 'Resumen del grupo clasificado' : 'Classified group summary'}
+              </div>
             </div>
-            <div style={{ fontSize: 10.5, color: T.textMuted, marginTop: 5,
-              fontWeight: 600, letterSpacing: 0.3 }}>
-              {lang === 'es' ? labelEs : labelEn}
-            </div>
-            <div style={{ fontSize: 9.5, color: T.textFaint, marginTop: 2 }}>
-              {lang === 'es' ? 'en prueba' : 'on test set'}
+
+            {/* Cuerpo */}
+            <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {/* Título del grupo + descripción */}
+              <div>
+                <div style={{
+                  fontSize: 15, fontWeight: 800, color: color,
+                  letterSpacing: -0.2, marginBottom: 5,
+                }}>
+                  {g.title}
+                </div>
+                <div style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.55 }}>
+                  {g.desc}
+                </div>
+              </div>
+
+              {/* Filas BI-RADS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {g.rows.map(({ cat, c, name, note }) => (
+                  <div key={cat} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <div style={{
+                      width: 6, height: 6, borderRadius: 3, flexShrink: 0,
+                      background: c, marginTop: 5,
+                    }} />
+                    <span style={{
+                      fontSize: 11.5, fontWeight: 700, color: c,
+                      flexShrink: 0, minWidth: 72,
+                    }}>
+                      {cat}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: T.textSub }}>
+                      <strong>{name}</strong>{' — '}{note}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Manejo sugerido */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 9,
+                padding: '8px 12px', borderRadius: 8,
+                background: `${color}08`, border: `1px solid ${color}1a`,
+              }}>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                  stroke={color} strokeWidth="1.4" strokeLinecap="round"
+                  style={{ flexShrink: 0, marginTop: 2 }}>
+                  <rect x="2" y="1" width="9" height="11" rx="1.5" />
+                  <line x1="4.5" y1="4.5" x2="8.5" y2="4.5" />
+                  <line x1="4.5" y1="6.5" x2="8.5" y2="6.5" />
+                  <line x1="4.5" y1="8.5" x2="7"   y2="8.5" />
+                </svg>
+                <div>
+                  <div style={{
+                    fontSize: 9.5, fontWeight: 700, color: color,
+                    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2,
+                  }}>
+                    {lang === 'es' ? 'Manejo sugerido' : 'Suggested management'}
+                  </div>
+                  <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.5 }}>
+                    {g.mgmt}
+                  </div>
+                </div>
+              </div>
+
+              {/* Disclaimer */}
+              <div style={{ fontSize: 11, color: T.textFaint, lineHeight: 1.55 }}>
+                {lang === 'es'
+                  ? 'La clasificación es una ayuda de lectura automatizada; el criterio final corresponde al radiólogo.'
+                  : 'This classification is an automated reading aid; the final determination belongs to the radiologist.'}
+              </div>
             </div>
           </div>
-        ))}
+        );
+      })()}
+
+      {/* ─── Interpretación del resultado ─────────────────────────────── */}
+      <div style={{
+        padding: '13px 16px', borderRadius: 10,
+        background: T.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)',
+        border: `1px solid ${T.border}`,
+        animation: 'slideIn 0.5s ease',
+      }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 700, color: T.textMuted,
+          textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8,
+        }}>
+          {lang === 'es' ? 'Interpretación del resultado' : 'Result interpretation'}
+        </div>
+        <p style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.65, margin: 0 }}>
+          {(() => {
+            const groupName = result.option === 'A'
+              ? (isPositive
+                  ? (lang === 'es' ? 'Sospechoso (BI-RADS 4-5)' : 'Suspicious (BI-RADS 4-5)')
+                  : (lang === 'es' ? 'Benigno (BI-RADS 1-2-3)' : 'Benign (BI-RADS 1-2-3)'))
+              : (isPositive
+                  ? (lang === 'es' ? 'Con hallazgos (BI-RADS 3-4-5)' : 'With findings (BI-RADS 3-4-5)')
+                  : (lang === 'es' ? 'Sin hallazgos (BI-RADS 1-2)' : 'No findings (BI-RADS 1-2)'));
+            const main = lang === 'es'
+              ? `El texto se clasifica dentro del grupo ${groupName} de la división seleccionada. ${
+                  isPositive
+                    ? 'Este resultado requiere revisión clínica y confirmación por el radiólogo.'
+                    : 'Un resultado negativo no descarta hallazgos clínicamente relevantes.'}`
+              : `The text is classified in the ${groupName} group of the selected split. ${
+                  isPositive
+                    ? 'This result requires clinical review and confirmation by the radiologist.'
+                    : 'A negative result does not rule out clinically relevant findings.'}`;
+            const lowConfNote = lowConf
+              ? (lang === 'es'
+                  ? ' La confianza de clasificación es baja; interprete el resultado con cautela.'
+                  : ' Classification confidence is low; interpret the result with caution.')
+              : '';
+            return main + lowConfNote;
+          })()}
+        </p>
       </div>
 
       {/* ─── Nota de demo ───────────────────────────────────────────────── */}

@@ -184,8 +184,16 @@ function App() {
 
   const runDemo    = () => analyze(window.SAMPLE_OBS);
   const loadExample = () => {
-    setText(window.SAMPLE_OBS);
+    const list = window.SAMPLE_OBS_LIST;
+    let pick = list[Math.floor(Math.random() * list.length)];
+    // Si el texto actual ya es ese ejemplo y hay otros disponibles, elegir otro
+    if (pick === text && list.length > 1) {
+      const others = list.filter(s => s !== text);
+      pick = others[Math.floor(Math.random() * others.length)];
+    }
+    setText(pick);
     setResults(null);
+    setRawScores(null);
     setBinaryResult(null);
     setError(null);
     setAnimated(false);

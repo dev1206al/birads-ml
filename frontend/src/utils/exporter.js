@@ -56,38 +56,123 @@ window.exportToPDF = function exportToPDF(opts) {
 
   // ── Modo binario ───────────────────────────────────────────────────────────
   if (mode === 'binary' && binaryResult) {
-    const r = binaryResult;
-    const isPos = r.prediction === 1;
-    const color = isPos ? '#ea580c' : '#16a34a';
+    const r      = binaryResult;
+    const isPos  = r.prediction === 1;
+    const color  = isPos ? '#ea580c' : '#16a34a';
     const optLabel = r.option === 'A' ? 'BR1-2-3 vs BR4-5' : 'BR1-2 vs BR3-4-5';
+    const confPct  = r.confidence ?? 0;
+    const lowConf  = confPct < 65;
 
-    const metricCards = [
-      ['recall',      es ? 'Sensibilidad'  : 'Sensitivity',  '#6366f1'],
-      ['specificity', es ? 'Especificidad' : 'Specificity',  '#0891b2'],
-      ['f1',          'F1-score',                            '#7c3aed'],
-    ].map(([k, label, mc]) => {
-      const val = r[k];
-      return `<div style="text-align:center;padding:11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
-        <div style="font-size:22px;font-weight:800;color:${mc};font-family:'IBM Plex Mono',monospace;line-height:1">${val != null ? val : '—'}<span style="font-size:12px;font-weight:400">${val != null ? '%' : ''}</span></div>
-        <div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:600">${label}</div>
-        <div style="font-size:9px;color:#94a3b8;margin-top:2px">${es ? 'en prueba' : 'on test set'}</div>
-      </div>`;
+    // Fallback metrics per option (matches left-panel chips in InputPanel)
+    const fbB = { recall: 84, specificity: 97, f1: 70 };
+    const fbA = { recall: 69, specificity: 100, f1: 72 };
+    const fb  = r.option === 'A' ? fbA : fbB;
+    const metricPills = [
+      { label: es ? 'Sensibilidad'  : 'Sensitivity',  val: r.recall      ?? fb.recall,      c: '#16a34a' },
+      { label: es ? 'Especificidad' : 'Specificity',  val: r.specificity ?? fb.specificity, c: '#0891b2' },
+      { label: 'F1-score',                            val: r.f1          ?? fb.f1,           c: '#7c3aed' },
+    ].map(({ label, val, c }) =>
+      '<span style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;padding:2px 8px;border-radius:4px;' +
+      'background:' + c + '0d;border:1px solid ' + c + '2e;font-family:\'IBM Plex Mono\',monospace;color:' + c + ';font-weight:700;white-space:nowrap">' +
+      '<span style="font-family:\'Inter\',sans-serif;font-weight:400;color:#94a3b8;font-size:9px">' + label + '</span>' +
+      (val != null ? val + '%' : '—') + '</span>'
+    ).join('');
+
+    // Group summary data (mirrors BinaryResult.jsx groups)
+    const caseKey    = r.option + String(r.prediction);
+    const groupsData = {
+      B0: { title: es ? 'Sin hallazgos (BI-RADS 1-2)' : 'No Findings (BI-RADS 1-2)',
+            desc:  es ? 'Esta clasificación agrupa textos compatibles con ausencia de hallazgos significativos o hallazgos benignos.'
+                      : 'This classification groups texts compatible with the absence of significant findings or benign findings.',
+            rows: es ? [{ cat:'BI-RADS 1', c:'#16a34a', name:'Negativo',  note:'sin hallazgos sospechosos.' },
+                        { cat:'BI-RADS 2', c:'#65a30d', name:'Benigno',   note:'hallazgos definitivamente benignos.' }]
+                     : [{ cat:'BI-RADS 1', c:'#16a34a', name:'Negative', note:'no suspicious findings.' },
+                        { cat:'BI-RADS 2', c:'#65a30d', name:'Benign',   note:'definitely benign findings.' }],
+            mgmt: es ? 'Seguimiento rutinario según criterio radiológico.' : 'Routine follow-up per radiological criteria.' },
+      B1: { title: es ? 'Con hallazgos (BI-RADS 3-4-5)' : 'With Findings (BI-RADS 3-4-5)',
+            desc:  es ? 'Esta clasificación agrupa textos con hallazgos que requieren seguimiento, evaluación adicional o intervención.'
+                      : 'This classification groups texts with findings requiring follow-up, additional evaluation, or intervention.',
+            rows: es ? [{ cat:'BI-RADS 3', c:'#d97706', name:'Prob. benigno', note:'seguimiento a corto plazo.' },
+                        { cat:'BI-RADS 4', c:'#ea580c', name:'Sospechoso',    note:'considerar biopsia.' },
+                        { cat:'BI-RADS 5', c:'#dc2626', name:'Alt. Maligno',  note:'requiere evaluación prioritaria.' }]
+                     : [{ cat:'BI-RADS 3', c:'#d97706', name:'Prob. Benign',      note:'short-term follow-up.' },
+                        { cat:'BI-RADS 4', c:'#ea580c', name:'Suspicious',        note:'consider biopsy.' },
+                        { cat:'BI-RADS 5', c:'#dc2626', name:'Highly suspicious', note:'priority evaluation required.' }],
+            mgmt: es ? 'Revisión por radiólogo y correlación clínica.' : 'Radiologist review and clinical correlation.' },
+      A0: { title: es ? 'Benigno (BI-RADS 1-2-3)' : 'Benign (BI-RADS 1-2-3)',
+            desc:  es ? 'Esta clasificación agrupa textos sin sospecha alta de malignidad.'
+                      : 'This classification groups texts without high suspicion of malignancy.',
+            rows: es ? [{ cat:'BI-RADS 1', c:'#16a34a', name:'Negativo',      note:'sin hallazgos.' },
+                        { cat:'BI-RADS 2', c:'#65a30d', name:'Benigno',       note:'hallazgos definitivamente benignos.' },
+                        { cat:'BI-RADS 3', c:'#d97706', name:'Prob. benigno', note:'seguimiento recomendado.' }]
+                     : [{ cat:'BI-RADS 1', c:'#16a34a', name:'Negative',     note:'no findings.' },
+                        { cat:'BI-RADS 2', c:'#65a30d', name:'Benign',       note:'definitely benign findings.' },
+                        { cat:'BI-RADS 3', c:'#d97706', name:'Prob. Benign', note:'follow-up recommended.' }],
+            mgmt: es ? 'Seguimiento rutinario o vigilancia corta según categoría final.' : 'Routine follow-up or short-term surveillance per final category.' },
+      A1: { title: es ? 'Sospechoso (BI-RADS 4-5)' : 'Suspicious (BI-RADS 4-5)',
+            desc:  es ? 'Esta clasificación agrupa textos con hallazgos sospechosos o altamente sugestivos de malignidad.'
+                      : 'This classification groups texts with suspicious or highly suggestive findings.',
+            rows: es ? [{ cat:'BI-RADS 4', c:'#ea580c', name:'Sospechoso',    note:'biopsia a considerar.' },
+                        { cat:'BI-RADS 5', c:'#dc2626', name:'Alta sospecha', note:'evaluación prioritaria.' }]
+                     : [{ cat:'BI-RADS 4', c:'#ea580c', name:'Suspicious',     note:'biopsy to consider.' },
+                        { cat:'BI-RADS 5', c:'#dc2626', name:'High suspicion', note:'priority evaluation.' }],
+            mgmt: es ? 'Confirmación por especialista.' : 'Specialist confirmation.' },
+    };
+    const g = groupsData[caseKey] || groupsData['B0'];
+    const biradRowsHtml = g.rows.map(function(row) {
+      return '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">' +
+        '<div style="width:6px;height:6px;border-radius:3px;background:' + row.c + ';flex-shrink:0;margin-top:5px"></div>' +
+        '<span style="font-size:10.5px;font-weight:700;color:' + row.c + ';flex-shrink:0;min-width:66px">' + row.cat + '</span>' +
+        '<span style="font-size:11.5px;color:#334155"><strong>' + row.name + '</strong> — ' + row.note + '</span></div>';
     }).join('');
 
+    // Interpretation (mirrors BinaryResult.jsx)
+    const groupName = r.option === 'A'
+      ? (isPos ? (es ? 'Sospechoso (BI-RADS 4-5)' : 'Suspicious (BI-RADS 4-5)') : (es ? 'Benigno (BI-RADS 1-2-3)' : 'Benign (BI-RADS 1-2-3)'))
+      : (isPos ? (es ? 'Con hallazgos (BI-RADS 3-4-5)' : 'With findings (BI-RADS 3-4-5)') : (es ? 'Sin hallazgos (BI-RADS 1-2)' : 'No findings (BI-RADS 1-2)'));
+    const mainInterp = es
+      ? 'El texto se clasifica dentro del grupo ' + groupName + ' de la división seleccionada. ' + (isPos ? 'Este resultado requiere revisión clínica y confirmación por el radiólogo.' : 'Un resultado negativo no descarta hallazgos clínicamente relevantes.')
+      : 'The text is classified in the ' + groupName + ' group of the selected split. ' + (isPos ? 'This result requires clinical review and confirmation by the radiologist.' : 'A negative result does not rule out clinically relevant findings.');
+    const lowConfNote = lowConf
+      ? (es ? ' La confianza de clasificación es baja; interprete el resultado con cautela.' : ' Classification confidence is low; interpret the result with caution.')
+      : '';
+
     resultHtml = `
-      <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:${color}0d;border:1px solid ${color}33;border-radius:10px;margin-bottom:14px">
-        <div>
-          <div style="font-size:9.5px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">
-            ${es ? 'Clasificación binaria · Opción' : 'Binary classification · Option'} ${r.option} · ${optLabel}
-          </div>
-          <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.4px">${r.class_name || '—'}</div>
+      <div style="padding:16px 20px;background:${color}0d;border:1px solid ${color}33;border-radius:10px;margin-bottom:10px">
+        <div style="font-size:9.5px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+          ${es ? 'Clasificación binaria · Opción' : 'Binary classification · Option'} ${r.option} · ${optLabel}
         </div>
-        <div style="margin-left:auto;text-align:right">
-          <div style="font-size:10px;color:#64748b;margin-bottom:2px">${es ? 'Confianza' : 'Confidence'}</div>
-          <div style="font-size:28px;font-weight:800;color:${color};font-family:'IBM Plex Mono',monospace;line-height:1">${r.confidence != null ? r.confidence : '—'}%</div>
+        <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.4px">${r.class_name || '—'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px">
+        <span style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;min-width:130px">${es ? 'Confianza de clasificación' : 'Classification confidence'}</span>
+        <div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;background:${color};width:${confPct}%;border-radius:3px"></div></div>
+        <span style="font-size:12px;font-weight:700;color:${color};min-width:40px;text-align:right;font-family:'IBM Plex Mono',monospace">${confPct}%</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        ${metricPills}
+        <span style="font-size:9px;color:#94a3b8;margin-left:2px">${es ? '(en conjunto de prueba)' : '(on test set)'}</span>
+      </div>
+      <div style="border-radius:10px;border:1px solid ${color}2e;background:#fff;overflow:hidden;margin-bottom:14px">
+        <div style="padding:8px 16px;background:${color}0a;border-bottom:1px solid ${color}20;display:flex;align-items:center;gap:8px">
+          <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></div>
+          <div style="font-size:9.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px">${es ? 'Resumen del grupo clasificado' : 'Classified group summary'}</div>
+        </div>
+        <div style="padding:14px 16px">
+          <div style="font-size:14px;font-weight:800;color:${color};margin-bottom:5px">${g.title}</div>
+          <div style="font-size:11.5px;color:#475569;line-height:1.55;margin-bottom:10px">${g.desc}</div>
+          <div style="margin-bottom:10px">${biradRowsHtml}</div>
+          <div style="padding:7px 11px;border-radius:7px;background:${color}08;border:1px solid ${color}1a;margin-bottom:10px">
+            <div style="font-size:9px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">${es ? 'Manejo sugerido' : 'Suggested management'}</div>
+            <div style="font-size:11px;color:#334155">${g.mgmt}</div>
+          </div>
+          <div style="font-size:10px;color:#94a3b8;line-height:1.55">${es ? 'La clasificación es una ayuda de lectura automatizada; el criterio final corresponde al radiólogo.' : 'This classification is an automated reading aid; the final determination belongs to the radiologist.'}</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${metricCards}</div>`;
+      <div style="padding:12px 15px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">${es ? 'Interpretación del resultado' : 'Result interpretation'}</div>
+        <p style="font-size:11.5px;color:#334155;line-height:1.65;margin:0">${mainInterp}${lowConfNote}</p>
+      </div>`;
 
   // ── Modo proba ─────────────────────────────────────────────────────────────
   } else if (mode === 'proba' && results && topCat !== null && BIRADS) {
@@ -157,7 +242,35 @@ window.exportToPDF = function exportToPDF(opts) {
             ${es
               ? '* Los porcentajes son softmax normalizados sobre los scores — <strong style="color:#64748b">no son probabilidades calibradas</strong>. El score refleja la distancia al hiperplano de decisión: positivo = favorece la clase, negativo = la rechaza.'
               : '* Percentages are softmax-normalized scores — <strong style="color:#64748b">not calibrated probabilities</strong>. Score reflects distance to the decision hyperplane: positive = favors the class, negative = rejects it.'}
-          </p>`;
+          </p>
+          ${(() => {
+            const s = [1,2,3,4,5]
+              .map(function(c) { return { cat: c, score: rawScores[String(c)] || 0, d: BIRADS[c] }; })
+              .sort(function(a,b) { return b.score - a.score; });
+            const t1 = s[0], t2 = s[1];
+            const diff = t1.score - t2.score;
+            const fs = function(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); };
+            var line;
+            if (diff >= 0.75) {
+              var lbl = t1.d.label + ' · ' + (es ? t1.d.es : t1.d.en);
+              line = es ? 'El ranking favorece ' + lbl + ' sobre las demás categorías según el score de decisión.'
+                        : 'The ranking favors ' + lbl + ' over all other categories by decision score.';
+            } else if (diff >= 0.25) {
+              var l1 = t1.d.label + ' · ' + (es ? t1.d.es : t1.d.en);
+              var l2 = t2.d.label + ' · ' + (es ? t2.d.es : t2.d.en);
+              line = es ? 'El ranking favorece ' + l1 + ', aunque la separación frente a ' + l2 + ' es moderada.'
+                        : 'The ranking favors ' + l1 + ', though the separation from ' + l2 + ' is moderate.';
+            } else {
+              line = es
+                ? 'Los scores de las primeras categorías son cercanos (' + t1.d.label + ' ' + fs(t1.score) + ' y ' + t2.d.label + ' ' + fs(t2.score) + '); interprete el ranking con cautela.'
+                : 'The scores of the top categories are close (' + t1.d.label + ' ' + fs(t1.score) + ' and ' + t2.d.label + ' ' + fs(t2.score) + '); interpret the ranking with caution.';
+            }
+            var cal = es ? 'Los scores indican soporte relativo del clasificador y no son probabilidades calibradas.'
+                         : 'Scores indicate relative classifier support and are not calibrated probabilities.';
+            return '<div style="padding:12px 15px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;margin-top:14px">'
+              + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">' + (es ? 'Interpretación del resultado' : 'Result interpretation') + '</div>'
+              + '<p style="font-size:11.5px;color:#334155;line-height:1.65;margin:0">' + line + ' ' + cal + '</p></div>';
+          })()}`;
 
       // ── MLP: distribución completa (grid) + tabla de ranking ─────────────
       } else {
@@ -165,7 +278,7 @@ window.exportToPDF = function exportToPDF(opts) {
 
         const confBar = confidence
           ? `<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px">
-              <span style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;min-width:80px">${es ? 'Confianza ML' : 'ML Confidence'}</span>
+              <span style="font-size:9.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;min-width:80px">${es ? 'Confianza de clasificación' : 'Classification confidence'}</span>
               <div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;background:${confidence.color};width:${confidence.pct}%;border-radius:3px"></div></div>
               <span style="font-size:12px;font-weight:700;color:${confidence.color};min-width:70px;text-align:right">${es ? confidence.labelEs : confidence.labelEn} (${confidence.pct}%)</span>
             </div>`
@@ -240,7 +353,43 @@ window.exportToPDF = function exportToPDF(opts) {
               </tr>
             </thead>
             <tbody>${rankRows}</tbody>
-          </table>`;
+          </table>
+          ${(() => {
+            var mlpS = [1,2,3,4,5]
+              .map(function(c) { return { cat: c, pct: results[c] || 0 }; })
+              .sort(function(a,b) { return b.pct - a.pct; });
+            var topPct  = results[topCat];
+            var topD    = BIRADS[topCat];
+            var tied    = mlpS.filter(function(x) { return x.pct === topPct && x.cat !== topCat; });
+            var isTie   = tied.length > 0;
+            var second  = mlpS[1];
+            var gap     = isTie ? 0 : topPct - (second ? second.pct : 0);
+            var narrow  = !isTie && gap < 10 && second && second.pct > 0;
+            var lines   = [];
+            if (isTie) {
+              lines.push(es ? 'El modelo no identifica una categoría dominante: dos o más categorías comparten la mayor probabilidad. Se recomienda revisión clínica adicional.'
+                            : 'The model does not identify a dominant category: two or more categories share the highest probability. Additional clinical review is recommended.');
+            } else if (topPct >= 65) {
+              var lbl = topD.label + ' · ' + (es ? topD.es : topD.en);
+              lines.push(es ? 'El modelo concentra la mayor probabilidad en ' + lbl + ', con ' + topPct + '%. La clasificación se muestra relativamente definida.'
+                            : 'The model concentrates the highest probability on ' + lbl + ', with ' + topPct + '%. The classification appears relatively defined.');
+            } else if (topPct >= 40) {
+              var lbl2 = topD.label + ' · ' + (es ? topD.es : topD.en);
+              lines.push(es ? 'La categoría con mayor probabilidad es ' + lbl2 + ' (' + topPct + '%), aunque la distribución conserva incertidumbre. Revise las categorías cercanas.'
+                            : 'The category with the highest probability is ' + lbl2 + ' (' + topPct + '%), though the distribution retains uncertainty. Review the nearby categories.');
+            } else {
+              lines.push(es ? 'La distribución es dispersa; el modelo no favorece una categoría con claridad. Interprete el resultado con cautela.'
+                            : 'The distribution is dispersed; the model does not clearly favor any category. Interpret the result with caution.');
+            }
+            if (narrow && second) {
+              var secD = BIRADS[second.cat];
+              lines.push(es ? 'La diferencia con la segunda categoría (' + secD.label + ', ' + second.pct + '%) es estrecha, por lo que ambas deben revisarse.'
+                            : 'The gap with the second category (' + secD.label + ', ' + second.pct + '%) is narrow, so both should be reviewed.');
+            }
+            return '<div style="padding:12px 15px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;margin-top:14px">'
+              + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">' + (es ? 'Interpretación del resultado' : 'Result interpretation') + '</div>'
+              + '<p style="font-size:11.5px;color:#334155;line-height:1.65;margin:0">' + lines.join(' ') + '</p></div>';
+          })()}`;
       }
     }
   }
@@ -375,7 +524,7 @@ window.copyResults = function copyResults(data, topCat, lang) {
     body = [
       `${es ? 'Clasificación binaria · Opción' : 'Binary classification · Option'} ${r.option}`,
       `${es ? 'Resultado' : 'Result'}: ${r.class_name}`,
-      `${es ? 'Confianza' : 'Confidence'}: ${r.confidence ?? '—'}%`,
+      `${es ? 'Confianza de clasificación' : 'Classification confidence'}: ${r.confidence ?? '—'}%`,
       ...(r.recall      != null ? [`${es ? 'Sensibilidad'  : 'Sensitivity'}: ${r.recall}%`]      : []),
       ...(r.specificity != null ? [`${es ? 'Especificidad' : 'Specificity'}: ${r.specificity}%`] : []),
       ...(r.f1          != null ? [`F1-score: ${r.f1}%`]                                          : []),

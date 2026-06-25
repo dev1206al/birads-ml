@@ -85,14 +85,17 @@ function ReferenceView({ lang, T }) {
     const isNa = d.risk_bar_pct === null;
 
     return (
-      <div style={{
-        background: T.card, border: `1px solid ${T.border}`,
-        borderRadius: 14, overflow: 'hidden',
-        boxShadow: T.dark ? 'none' : '0 1px 8px rgba(0,0,0,0.05)',
-        display: 'flex', flexDirection: 'column',
-        transition: 'border-color 0.2s, box-shadow 0.2s',
-        opacity: isOutOfScope ? 0.88 : 1,
-      }}
+      <div
+        onClick={() => toggleCat(cat)}
+        style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: 14, overflow: 'hidden',
+          boxShadow: T.dark ? 'none' : '0 1px 8px rgba(0,0,0,0.05)',
+          display: 'flex', flexDirection: 'column',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
+          opacity: isOutOfScope ? 0.88 : 1,
+          cursor: 'pointer',
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = `${d.color}55`;
           e.currentTarget.style.boxShadow = `0 4px 20px ${d.glow}`;
@@ -136,31 +139,44 @@ function ReferenceView({ lang, T }) {
                 </div>
               </div>
             </div>
-            {/* Chip: fuera del modelo o riesgo */}
-            {isOutOfScope ? (
-              <div style={{
-                flexShrink: 0, padding: '3px 9px', borderRadius: 20,
-                background: 'rgba(100,116,139,0.1)',
-                border: '1px solid rgba(100,116,139,0.28)',
-                fontSize: 11, fontWeight: 700, color: '#64748b',
-                letterSpacing: 0.2,
-              }}>
-                {lang === 'es' ? 'Fuera del modelo' : 'Outside model'}
-              </div>
-            ) : (
-              <div style={{
-                flexShrink: 0, padding: '3px 9px', borderRadius: 20,
-                background: isNa
-                  ? (T.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
-                  : `${d.color}18`,
-                border: `1px solid ${isNa ? T.border : d.color + '44'}`,
-                fontSize: 11, fontWeight: 700,
-                color: isNa ? T.textMuted : d.color,
-                letterSpacing: 0.2,
-              }}>
-                {lang === 'es' ? d.risk_label_es : d.risk_label_en}
-              </div>
-            )}
+            {/* Chip de riesgo + chevron de estado */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {isOutOfScope ? (
+                <div style={{
+                  padding: '3px 9px', borderRadius: 20,
+                  background: 'rgba(100,116,139,0.1)',
+                  border: '1px solid rgba(100,116,139,0.28)',
+                  fontSize: 11, fontWeight: 700, color: '#64748b',
+                  letterSpacing: 0.2,
+                }}>
+                  {lang === 'es' ? 'Fuera del modelo' : 'Outside model'}
+                </div>
+              ) : (
+                <div style={{
+                  padding: '3px 9px', borderRadius: 20,
+                  background: isNa
+                    ? (T.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)')
+                    : `${d.color}18`,
+                  border: `1px solid ${isNa ? T.border : d.color + '44'}`,
+                  fontSize: 11, fontWeight: 700,
+                  color: isNa ? T.textMuted : d.color,
+                  letterSpacing: 0.2,
+                }}>
+                  {lang === 'es' ? d.risk_label_es : d.risk_label_en}
+                </div>
+              )}
+              {/* Chevron — apunta ↓ colapsado, ↑ expandido */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                style={{
+                  color: isExpanded ? d.color : T.textMuted,
+                  transform: isExpanded ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.22s ease, color 0.15s',
+                  flexShrink: 0,
+                }}>
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6"
+                  strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
 
           {/* Barra de riesgo */}
@@ -230,30 +246,43 @@ function ReferenceView({ lang, T }) {
 
         {/* ── Toggle: hallazgos típicos ────────────────────────────────── */}
         <button
-          onClick={() => toggleCat(cat)}
+          className="card-toggle"
+          onClick={(e) => { e.stopPropagation(); toggleCat(cat); }}
+          aria-expanded={isExpanded}
+          aria-controls={`birads-findings-${cat}`}
           style={{
             width: '100%', padding: '10px 20px',
-            borderTop: `1px solid ${T.border}`,
-            background: 'transparent', border: 'none',
+            border: 'none',
+            borderTop: `1px solid ${isExpanded ? d.color + '33' : T.border}`,
+            background: isExpanded
+              ? (T.dark ? 'rgba(255,255,255,0.04)' : `${d.color}07`)
+              : 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            cursor: 'pointer', color: T.textMuted, fontSize: 11.5,
-            fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
-            transition: 'background 0.15s, color 0.15s',
+            cursor: 'pointer',
+            color: isExpanded ? d.color : T.textMuted,
+            fontSize: 11.5, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
+            transition: 'background 0.15s, color 0.15s, border-color 0.15s',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = T.dark
-              ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+              ? 'rgba(255,255,255,0.05)' : `${d.color}0d`;
             e.currentTarget.style.color = d.color;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = T.textMuted;
+            e.currentTarget.style.background = isExpanded
+              ? (T.dark ? 'rgba(255,255,255,0.04)' : `${d.color}07`)
+              : 'transparent';
+            e.currentTarget.style.color = isExpanded ? d.color : T.textMuted;
           }}
         >
-          <span>{lang === 'es' ? 'Hallazgos típicos' : 'Typical findings'}</span>
+          <span>
+            {isExpanded
+              ? (lang === 'es' ? 'Ocultar hallazgos' : 'Hide findings')
+              : (lang === 'es' ? 'Ver hallazgos típicos' : 'View typical findings')}
+          </span>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
             style={{ transform: isExpanded ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s' }}>
+              transition: 'transform 0.22s ease' }}>
             <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5"
               strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -261,12 +290,17 @@ function ReferenceView({ lang, T }) {
 
         {/* ── Sección expandida ────────────────────────────────────────── */}
         {isExpanded && (
-          <div style={{
-            padding: '14px 20px 18px',
-            borderTop: `1px solid ${T.border}`,
-            background: T.dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
-            animation: 'fadeIn 0.18s ease',
-          }}>
+          <div
+            id={`birads-findings-${cat}`}
+            role="region"
+            aria-label={lang === 'es' ? 'Hallazgos típicos' : 'Typical findings'}
+            style={{
+              padding: '14px 20px 18px',
+              borderTop: `1px solid ${T.border}`,
+              background: T.dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
+              animation: 'accordionOpen 0.2s ease',
+            }}
+          >
             <p style={{ fontSize: 12, color: T.textSub, lineHeight: 1.65, marginBottom: subcats ? 14 : 0 }}>
               {lang === 'es' ? d.findings_es : d.findings_en}
             </p>

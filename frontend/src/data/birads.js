@@ -194,7 +194,48 @@ window.BIRADS = {
   },
 };
 
-// Texto de ejemplo que usamos cuando el usuario pulsa el botón "Ejemplo".
-window.SAMPLE_OBS = `Mama derecha: Se identifica nódulo de morfología irregular, bordes espiculados, densidad incrementada, de aproximadamente 14mm en cuadrante superior externo (CSE), a 3cm del pezón. Asociado a microcalcificaciones pleomórficas agrupadas en región retroareolar. Retracción cutánea focal y engrosamiento dérmico ipsilateral. Distorsión arquitectural adyacente al nódulo.
+// ─── Observaciones de ejemplo para el botón "Ejemplo aleatorio" ──────────────
+// 10 casos sintéticos que cubren el espectro BI-RADS 1–5.
+// No contienen datos identificables ni reportes reales.
+window.SAMPLE_OBS_LIST = [
 
-Mama izquierda: Sin hallazgos significativos. Arquitectura conservada. Sin adenopatías axilares evidentes.`;
+  // BI-RADS 5 — Altamente sugestivo de malignidad
+  `Mama derecha: Se identifica nódulo de morfología irregular, bordes espiculados, densidad incrementada, de aproximadamente 14mm en cuadrante superior externo (CSE), a 3cm del pezón. Asociado a microcalcificaciones pleomórficas agrupadas en región retroareolar. Retracción cutánea focal y engrosamiento dérmico ipsilateral. Distorsión arquitectural adyacente al nódulo.
+
+Mama izquierda: Sin hallazgos significativos. Arquitectura conservada. Sin adenopatías axilares evidentes.`,
+
+  // BI-RADS 1 — Negativo
+  `Mama derecha: Tejido fibroglandular de densidad moderada, arquitectura conservada, sin masas ni distorsión arquitectural. Sin calcificaciones sospechosas. Piel y pezón sin alteraciones.
+Mama izquierda: Hallazgos similares, sin particularidades. Sin adenopatías axilares bilaterales detectadas.`,
+
+  // BI-RADS 1 — Negativo, composición adiposa
+  `Ambas mamas con composición predominantemente adiposa, lo que facilita la evaluación mamográfica. Sin masas, calcificaciones ni distorsión arquitectural. Pezones centrados. Sin adenopatías axilares detectadas.`,
+
+  // BI-RADS 2 — Benigno, quiste simple
+  `Mama izquierda: Nódulo oval de márgenes bien definidos y circunscritos de 8mm en cuadrante ínfero-externo, sin calcificaciones ni distorsión arquitectural asociada. Compatible con quiste simple a la ecografía.
+Mama derecha: Sin hallazgos relevantes. Arquitectura conservada.`,
+
+  // BI-RADS 2 — Benigno, calcificaciones vasculares y fibroadenoma calcificado
+  `Mama derecha: Calcificaciones lineales de trayecto vascular bilateral. Nódulo oval de 11mm con macrocalcificaciones en su interior, de aspecto francamente benigno, compatible con fibroadenoma calcificado.
+Mama izquierda: Nódulo de 6mm circunscrito y homogéneo de aspecto ganglionar intramamario. Sin hallazgos de malignidad.`,
+
+  // BI-RADS 3 — Probablemente benigno, nódulo circunscrito
+  `Mama derecha: Nódulo oval de 12mm en cuadrante superior externo, márgenes circunscritos, densidad similar al tejido glandular adyacente, sin calcificaciones ni distorsión. No se identifican adenopatías axilares. Se recomienda control a corto plazo para confirmar estabilidad.`,
+
+  // BI-RADS 3 — Probablemente benigno, asimetría focal
+  `Mama izquierda: Asimetría focal en cuadrante superior interno sin masa definida ni calcificaciones asociadas. Sin distorsión arquitectural. No se identifica correlato palpable en el informe clínico.
+Mama derecha: Sin hallazgos. Control mamográfico a los 6 meses.`,
+
+  // BI-RADS 4A — Sospechoso, baja sospecha
+  `Mama derecha: Nódulo de 9mm en unión de cuadrantes externos con márgenes microlobulados, densidad moderada, sin calcificaciones ni distorsión arquitectural. Adenopatía axilar derecha de morfología conservada, de aspecto reactivo. Se recomienda verificación histológica.`,
+
+  // BI-RADS 4B — Sospechoso, sospecha intermedia
+  `Mama izquierda: Agrupación de microcalcificaciones de morfología amorfa en cuadrante central de distribución regional, sin masa asociada. Arquitectura conservada.
+Mama derecha: Sin hallazgos. Se recomienda biopsia con guía estereotáxica para correlación histopatológica.`,
+
+  // BI-RADS 4C — Sospechoso, sospecha moderada-alta
+  `Mama derecha: Masa de 17mm en cuadrante superior externo con márgenes parcialmente irregulares y espiculados, densidad incrementada, asociada a microcalcificaciones pleomórficas agrupadas. Sin retracción cutánea evidente. Adenopatías axilares de morfología indeterminada. Se recomienda biopsia de forma prioritaria.`,
+];
+
+// Alias de compatibilidad — apunta al primer ejemplo de la lista.
+window.SAMPLE_OBS = window.SAMPLE_OBS_LIST[0];

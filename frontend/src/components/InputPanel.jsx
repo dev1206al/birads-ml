@@ -120,12 +120,42 @@ function InputPanel({
           <div style={{ fontSize: 10.5, color: T.textFaint, marginTop: 5, lineHeight: 1.5 }}>
             {binaryOption === 'B'
               ? (lang === 'es'
-                  ? 'Sin hallazgos (BR1-2) vs Con hallazgos (BR3-4-5) · Modelo: LinearSVC'
-                  : 'No findings (BR1-2) vs Findings (BR3-4-5) · Model: LinearSVC')
+                  ? 'Sin hallazgos: BI-RADS 1-2 · Con hallazgos: BI-RADS 3-4-5'
+                  : 'No findings: BI-RADS 1-2 · With findings: BI-RADS 3-4-5')
               : (lang === 'es'
-                  ? 'Benigno (BR1-2-3) vs Sospechoso (BR4-5) · Modelo: LinearSVC'
-                  : 'Benign (BR1-2-3) vs Suspicious (BR4-5) · Model: LinearSVC')
+                  ? 'Benigno: BI-RADS 1-2-3 · Sospechoso: BI-RADS 4-5'
+                  : 'Benign: BI-RADS 1-2-3 · Suspicious: BI-RADS 4-5')
             }
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+            {(binaryOption === 'B'
+              ? [
+                  { labelEs: 'Sensibilidad',  labelEn: 'Sensitivity',  val: 84, mc: '#16a34a' },
+                  { labelEs: 'Especificidad', labelEn: 'Specificity',  val: 97, mc: '#0891b2' },
+                  { labelEs: 'F1-score',      labelEn: 'F1-score',     val: 70, mc: '#7c3aed' },
+                ]
+              : [
+                  { labelEs: 'Sensibilidad',  labelEn: 'Sensitivity',  val: 69,  mc: '#16a34a' },
+                  { labelEs: 'Especificidad', labelEn: 'Specificity',  val: 100, mc: '#0891b2' },
+                  { labelEs: 'F1-score',      labelEn: 'F1-score',     val: 72,  mc: '#7c3aed' },
+                ]
+            ).map(({ labelEs, labelEn, val, mc }) => (
+              <span key={labelEs} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 10, padding: '2px 7px', borderRadius: 5,
+                background: `${mc}0d`, border: `1px solid ${mc}2e`,
+                fontFamily: 'DM Mono, monospace', color: mc, fontWeight: 700,
+                whiteSpace: 'nowrap',
+              }}>
+                <span style={{
+                  fontFamily: 'DM Sans, sans-serif', fontWeight: 400,
+                  color: T.textFaint, fontSize: 9.5,
+                }}>
+                  {lang === 'es' ? labelEs : labelEn}
+                </span>
+                {val}%
+              </span>
+            ))}
           </div>
         </div>
       )}
@@ -243,7 +273,7 @@ function InputPanel({
             e.currentTarget.style.color = T.textSub;
           }}
         >
-          {lang === 'es' ? 'Ejemplo' : 'Example'}
+          {lang === 'es' ? 'Ejemplo aleatorio' : 'Random example'}
         </button>
 
         {/* Limpiar */}

@@ -161,64 +161,6 @@ function ResultsPanel({
       {/* ─── Estado 3b: distribución BI-RADS (probabilidades) ─────────── */}
       {hasResults && (
         <React.Fragment>
-          {/* ─── Banner de alerta contextual ──────────────────────────────── */}
-          {topCat !== null && (() => {
-            const tied    = tiedCats;
-            const bimodal = isBimodal;
-            const topPct  = results[topCat];
-            const isTie   = tied.length > 0;
-            const lowConf = topPct < 40 && !isTie;
-
-            if (!isTie && !bimodal && !lowConf) return null;
-
-            // Determinar tipo de alerta
-            let icon, bg, border, textColor, title, body;
-
-            if (isTie && bimodal) {
-              icon = '⚡'; bg = 'rgba(220,38,38,0.07)'; border = 'rgba(220,38,38,0.28)';
-              textColor = '#b91c1c';
-              title = lang === 'es' ? 'Empate bimodal' : 'Bimodal tie';
-              body  = lang === 'es'
-                ? `Dos categorías no adyacentes comparten la mayor probabilidad (${topPct}%). El modelo no puede discriminar con certeza — la categoría real puede estar en cualquier extremo del espectro.`
-                : `Two non-adjacent categories share the highest probability (${topPct}%). The model cannot discriminate reliably — the actual category may be at either end of the spectrum.`;
-            } else if (isTie) {
-              icon = '⚖'; bg = 'rgba(217,119,6,0.10)'; border = 'rgba(217,119,6,0.35)';
-              textColor = '#b45309';
-              title = lang === 'es' ? 'Resultado ambiguo — empate' : 'Ambiguous result — tie';
-              body  = lang === 'es'
-                ? `Dos categorías comparten la mayor probabilidad (${topPct}%). No hay un ganador claro. Se recomienda revisión clínica adicional.`
-                : `Two categories share the highest probability (${topPct}%). No clear winner. Additional clinical review is recommended.`;
-            } else if (bimodal) {
-              icon = '〰'; bg = 'rgba(124,58,237,0.08)'; border = 'rgba(124,58,237,0.28)';
-              textColor = '#6d28d9';
-              title = lang === 'es' ? 'Distribución bimodal' : 'Bimodal distribution';
-              body  = lang === 'es'
-                ? `Alta probabilidad en categorías no adyacentes. El modelo detecta características de dos grupos muy distintos — el reporte requiere revisión especializada.`
-                : `High probability in non-adjacent categories. The model detects features from two very different groups — the report requires specialist review.`;
-            } else {
-              icon = '〜'; bg = T.dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
-              border = T.border; textColor = T.textSub;
-              title = lang === 'es' ? 'Distribución dispersa' : 'Dispersed distribution';
-              body  = lang === 'es'
-                ? `El modelo no favorece ninguna categoría con certeza (máximo ${topPct}%). Los resultados deben interpretarse con precaución.`
-                : `The model does not favor any category with certainty (max ${topPct}%). Results should be interpreted with caution.`;
-            }
-
-            return (
-              <div style={{
-                padding: '11px 15px', borderRadius: 10, fontSize: 12.5,
-                background: bg, border: `1px solid ${border}`, color: textColor,
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                animation: 'slideIn 0.35s ease',
-              }}>
-                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{icon}</span>
-                <span>
-                  <strong>{title}</strong>{' — '}{body}
-                </span>
-              </div>
-            );
-          })()}
-
           {/* ─── Tira de ranking (colapsable en modo grid, principal en modo ranking) ── */}
           {topCat !== null && (() => {
             const BIRADS   = window.BIRADS;
@@ -261,19 +203,8 @@ function ResultsPanel({
                       color: isRanking ? topD.color : T.textMuted,
                       textTransform: 'uppercase', letterSpacing: 0.6,
                     }}>
-                      {isRanking
-                        ? (lang === 'es' ? 'Scores del clasificador' : 'Classifier scores')
-                        : (lang === 'es' ? 'Ranking del clasificador' : 'Classifier ranking')}
+                      {lang === 'es' ? 'Ranking del clasificador' : 'Classifier ranking'}
                     </span>
-                    {hasRaw && (
-                      <span style={{
-                        fontSize: 9.5, fontWeight: 700, padding: '1px 6px',
-                        borderRadius: 4, letterSpacing: 0.3,
-                        background: 'rgba(99,102,241,0.12)', color: '#6366f1',
-                      }}>
-                        LinearSVC · F1 0.794
-                      </span>
-                    )}
                   </div>
                   {!isRanking && (
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
@@ -372,6 +303,304 @@ function ResultsPanel({
                     </div>
                   </div>
                 )}
+              </div>
+            );
+          })()}
+
+          {/* ─── Mapa de scores y Top 3 — solo modo ranking ──────────── */}
+          {probaDisplay === 'ranking' && topCat !== null && rawScores && (() => {
+            const B = window.BIRADS;
+            const cats = [1, 2, 3, 4, 5];
+            const scoreData = cats.map(cat => ({
+              cat,
+              score: Number(rawScores[String(cat)] ?? 0),
+              d: B[cat],
+            }));
+
+            const allVals = [...scoreData.map(s => s.score), 0];
+            const minVal  = Math.min(...allVals);
+            const maxVal  = Math.max(...allVals);
+            const range   = maxVal - minVal || 1;
+            // Map to [6%, 94%] so edge dots never clip
+            const toPos   = (v) => 6 + ((v - minVal) / range) * 88;
+            const zeroPct = toPos(0);
+
+            // Sort by position, alternate label rows to avoid collisions
+            const mapped = scoreData
+              .map(s => ({ ...s, posPct: toPos(s.score) }))
+              .sort((a, b) => a.posPct - b.posPct)
+              .map((s, i) => ({ ...s, labelRow: i % 2 }));
+
+            const top3    = [...scoreData].sort((a, b) => b.score - a.score).slice(0, 3);
+            const fmtScore = (v) => (v >= 0 ? '+' : '') + v.toFixed(2);
+            const s0      = top3[0]?.score ?? 1;
+            const s2      = top3[2]?.score ?? s0;
+            const barSpan = s0 - s2 || 1;
+
+            return (
+              <React.Fragment>
+
+                {/* Mapa de scores de decisión */}
+                <div style={{
+                  background: T.card, border: `1px solid ${T.border}`,
+                  borderRadius: 12, padding: '16px 18px 14px',
+                  animation: 'slideIn 0.3s ease',
+                  boxShadow: T.dark ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+                }}>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, color: T.textMuted,
+                    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 16,
+                  }}>
+                    {lang === 'es' ? 'Mapa de scores de decisión' : 'Decision score map'}
+                  </div>
+
+                  {/* Área del eje */}
+                  <div style={{ position: 'relative', height: 76 }}>
+                    <div style={{
+                      position: 'absolute', bottom: 18,
+                      left: 0, right: 0, height: 2, borderRadius: 1,
+                      background: T.barTrack,
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      left: `${zeroPct}%`, bottom: 13,
+                      width: 1, height: 12,
+                      background: T.textMuted, opacity: 0.5,
+                    }} />
+                    {mapped.map(({ cat, score, d, posPct, labelRow }) => {
+                      const isTop   = cat === topCat;
+                      const dotSize = isTop ? 13 : 9;
+                      return (
+                        <React.Fragment key={cat}>
+                          <div style={{
+                            position: 'absolute',
+                            left: `${posPct}%`,
+                            bottom: 18 - dotSize / 2,
+                            width: dotSize, height: dotSize, borderRadius: '50%',
+                            background: d.color,
+                            transform: 'translateX(-50%)',
+                            boxShadow: isTop ? `0 0 10px ${d.color}` : 'none',
+                            zIndex: isTop ? 2 : 1,
+                          }} />
+                          <div style={{
+                            position: 'absolute',
+                            left: `${posPct}%`,
+                            bottom: 18 + dotSize / 2 + 2 + labelRow * 19,
+                            transform: 'translateX(-50%)',
+                            whiteSpace: 'nowrap',
+                            fontSize: 9.5, fontWeight: isTop ? 700 : 400,
+                            color: isTop ? d.color : T.textSub,
+                            fontFamily: 'DM Mono, monospace',
+                            zIndex: 3,
+                          }}>
+                            BR{cat} {fmtScore(score)}
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+
+                  {/* Leyenda del eje */}
+                  <div style={{ position: 'relative', height: 14, margin: '2px 0 8px' }}>
+                    <span style={{
+                      position: 'absolute', left: 0,
+                      fontSize: 9.5, color: T.textFaint, fontWeight: 500,
+                    }}>
+                      {lang === 'es' ? 'Menor soporte' : 'Less support'}
+                    </span>
+                    <span style={{
+                      position: 'absolute', left: `${zeroPct}%`,
+                      transform: 'translateX(-50%)',
+                      fontSize: 9.5, color: T.textMuted, fontWeight: 700,
+                      fontFamily: 'DM Mono, monospace',
+                    }}>0</span>
+                    <span style={{
+                      position: 'absolute', right: 0,
+                      fontSize: 9.5, color: T.textFaint, fontWeight: 500,
+                    }}>
+                      {lang === 'es' ? 'Mayor soporte' : 'More support'}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 10, color: T.textFaint, lineHeight: 1.4 }}>
+                    {lang === 'es'
+                      ? 'Más a la derecha = mayor soporte del clasificador.'
+                      : 'Further right = greater classifier support.'}
+                  </div>
+                </div>
+
+                {/* Top 3 por score */}
+                <div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, color: T.gridLabel,
+                    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12,
+                  }}>
+                    {lang === 'es' ? 'Top 3 por score' : 'Top 3 by score'}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 11 }}>
+                    {top3.map(({ cat, score, d }, rank) => {
+                      const barPct = Math.max(8, ((score - s2) / barSpan) * 90 + 10);
+                      return (
+                        <button
+                          key={cat}
+                          className="birads-mini-btn"
+                          onClick={() => onOpenModal(cat)}
+                          aria-haspopup="dialog"
+                          aria-label={`${d.label} — ${lang === 'es' ? d.es : d.en}. Score ${fmtScore(score)}. ${lang === 'es' ? 'Ver descripción completa.' : 'View full description.'}`}
+                          style={{
+                            appearance: 'none', WebkitAppearance: 'none',
+                            textAlign: 'left', fontFamily: 'DM Sans, sans-serif',
+                            width: '100%', display: 'block',
+                            borderRadius: 12, padding: '16px 16px 14px',
+                            cursor: 'pointer', position: 'relative',
+                            background: rank === 0 ? `${d.color}10` : T.card,
+                            border: `1px solid ${rank === 0 ? d.color + '55' : T.border}`,
+                            boxShadow: rank === 0
+                              ? `0 0 22px ${d.glow}`
+                              : (T.dark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)'),
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = `${d.color}12`;
+                            e.currentTarget.style.borderColor = `${d.color}55`;
+                            e.currentTarget.style.boxShadow = `0 4px 18px ${d.color}1a`;
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = rank === 0 ? `${d.color}10` : T.card;
+                            e.currentTarget.style.borderColor = rank === 0 ? d.color + '55' : T.border;
+                            e.currentTarget.style.boxShadow = rank === 0
+                              ? `0 0 22px ${d.glow}`
+                              : (T.dark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)');
+                            e.currentTarget.style.transform = 'none';
+                          }}
+                        >
+                          {/* Badge de ranking */}
+                          <div style={{
+                            position: 'absolute', top: 10, right: 10,
+                            display: 'flex', alignItems: 'center', gap: 5,
+                          }}>
+                            <div style={{
+                              width: 6, height: 6, borderRadius: 3, background: d.color,
+                              boxShadow: rank === 0 ? `0 0 8px ${d.color}` : 'none',
+                            }} />
+                            <span style={{
+                              fontSize: 9.5, fontWeight: 700,
+                              color: d.color, letterSpacing: 0.5,
+                            }}>#{rank + 1}</span>
+                          </div>
+
+                          {/* Label BI-RADS */}
+                          <div style={{
+                            fontSize: 13, fontWeight: 700, letterSpacing: 0.2, marginBottom: 6,
+                            color: rank === 0 ? d.color : T.textSub,
+                          }}>
+                            {d.label}
+                          </div>
+
+                          {/* Score grande */}
+                          <div style={{
+                            fontSize: 36, fontWeight: 800,
+                            fontFamily: 'DM Mono, monospace',
+                            color: rank === 0 ? d.color : (score >= 0 ? T.text : T.textMuted),
+                            lineHeight: 1, letterSpacing: -1.5, marginBottom: 4,
+                          }}>
+                            {fmtScore(score)}
+                          </div>
+
+                          {/* Nombre clínico */}
+                          <div style={{
+                            fontSize: 12.5, color: T.textSub,
+                            marginBottom: 10, fontWeight: 500,
+                          }}>
+                            {lang === 'es' ? d.es : d.en}
+                          </div>
+
+                          {/* Barra de score relativo */}
+                          <div style={{
+                            height: 3, background: T.barTrack,
+                            borderRadius: 2, overflow: 'hidden', marginBottom: 10,
+                          }}>
+                            <div style={{
+                              height: '100%', background: d.color, borderRadius: 2,
+                              width: animated ? `${barPct}%` : '0%',
+                              transition: `width 0.85s cubic-bezier(0.4,0,0.2,1) ${rank * 0.1}s`,
+                              boxShadow: rank === 0 ? `0 0 8px ${d.color}` : 'none',
+                            }} />
+                          </div>
+
+                          {/* CTA */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            fontSize: 10.5, fontWeight: 700,
+                            color: d.color, opacity: 0.8,
+                          }}>
+                            <span>{lang === 'es' ? 'Ver descripción' : 'View details'}</span>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                              <path d="M1.5 5h7M6 2.5l2.5 2.5L6 7.5"
+                                stroke="currentColor" strokeWidth="1.4"
+                                strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </React.Fragment>
+            );
+          })()}
+
+          {/* ─── Interpretación del resultado — LinearSVC ───────────────── */}
+          {probaDisplay === 'ranking' && topCat !== null && rawScores && (() => {
+            const B      = window.BIRADS;
+            const sorted = [1,2,3,4,5]
+              .map(c => ({ cat: c, score: Number(rawScores[String(c)] ?? 0), d: B[c] }))
+              .sort((a, b) => b.score - a.score);
+            const top1   = sorted[0];
+            const top2   = sorted[1];
+            const diff   = top1.score - top2.score;
+            const fmtS   = (v) => (v >= 0 ? '+' : '') + v.toFixed(2);
+
+            let mainLine;
+            if (diff >= 0.75) {
+              const lbl = `${top1.d.label} · ${lang === 'es' ? top1.d.es : top1.d.en}`;
+              mainLine = lang === 'es'
+                ? `El ranking favorece ${lbl} sobre las demás categorías según el score de decisión.`
+                : `The ranking favors ${lbl} over all other categories by decision score.`;
+            } else if (diff >= 0.25) {
+              const lbl1 = `${top1.d.label} · ${lang === 'es' ? top1.d.es : top1.d.en}`;
+              const lbl2 = `${top2.d.label} · ${lang === 'es' ? top2.d.es : top2.d.en}`;
+              mainLine = lang === 'es'
+                ? `El ranking favorece ${lbl1}, aunque la separación frente a ${lbl2} es moderada.`
+                : `The ranking favors ${lbl1}, though the separation from ${lbl2} is moderate.`;
+            } else {
+              mainLine = lang === 'es'
+                ? `Los scores de las primeras categorías son cercanos (${top1.d.label} ${fmtS(top1.score)} y ${top2.d.label} ${fmtS(top2.score)}); interprete el ranking con cautela.`
+                : `The scores of the top categories are close (${top1.d.label} ${fmtS(top1.score)} and ${top2.d.label} ${fmtS(top2.score)}); interpret the ranking with caution.`;
+            }
+
+            const calibNote = lang === 'es'
+              ? 'Los scores indican soporte relativo del clasificador y no son probabilidades calibradas.'
+              : 'Scores indicate relative classifier support and are not calibrated probabilities.';
+
+            return (
+              <div style={{
+                padding: '13px 16px', borderRadius: 10,
+                background: T.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)',
+                border: `1px solid ${T.border}`,
+                animation: 'slideIn 0.5s ease',
+              }}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700, color: T.textMuted,
+                  textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8,
+                }}>
+                  {lang === 'es' ? 'Interpretación del resultado' : 'Result interpretation'}
+                </div>
+                <p style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.65, margin: 0 }}>
+                  {mainLine}{' '}{calibNote}
+                </p>
               </div>
             );
           })()}
@@ -612,7 +841,7 @@ function ResultsPanel({
                   minWidth: 80,
                 }}
               >
-                {lang === 'es' ? 'Confianza ML' : 'ML Confidence'}
+                {lang === 'es' ? 'Confianza de clasificación' : 'Classification confidence'}
               </div>
               <div
                 style={{
@@ -713,6 +942,69 @@ function ResultsPanel({
 
           </React.Fragment>
           )}
+
+          {/* ─── Interpretación del resultado — MLP ─────────────────────── */}
+          {probaDisplay !== 'ranking' && topCat !== null && (() => {
+            const B        = window.BIRADS;
+            const isTie    = tiedCats.length > 0;
+            const topPct   = results[topCat];
+            const topD     = B[topCat];
+
+            const sorted2  = [1,2,3,4,5]
+              .map(c => ({ cat: c, pct: results[c] || 0 }))
+              .sort((a, b) => b.pct - a.pct);
+            const second   = sorted2[1];
+            const gap      = isTie ? 0 : topPct - (second?.pct || 0);
+            const narrowGap = !isTie && gap < 10 && (second?.pct || 0) > 0;
+
+            const lines = [];
+
+            if (isTie) {
+              lines.push(lang === 'es'
+                ? 'El modelo no identifica una categoría dominante: dos o más categorías comparten la mayor probabilidad. Se recomienda revisión clínica adicional.'
+                : 'The model does not identify a dominant category: two or more categories share the highest probability. Additional clinical review is recommended.');
+            } else if (topPct >= 65) {
+              const lbl = `${topD.label} · ${lang === 'es' ? topD.es : topD.en}`;
+              lines.push(lang === 'es'
+                ? `El modelo concentra la mayor probabilidad en ${lbl}, con ${topPct}%. La clasificación se muestra relativamente definida.`
+                : `The model concentrates the highest probability on ${lbl}, with ${topPct}%. The classification appears relatively defined.`);
+            } else if (topPct >= 40) {
+              const lbl = `${topD.label} · ${lang === 'es' ? topD.es : topD.en}`;
+              lines.push(lang === 'es'
+                ? `La categoría con mayor probabilidad es ${lbl} (${topPct}%), aunque la distribución conserva incertidumbre. Revise las categorías cercanas.`
+                : `The category with the highest probability is ${lbl} (${topPct}%), though the distribution retains uncertainty. Review the nearby categories.`);
+            } else {
+              lines.push(lang === 'es'
+                ? 'La distribución es dispersa; el modelo no favorece una categoría con claridad. Interprete el resultado con cautela.'
+                : 'The distribution is dispersed; the model does not clearly favor any category. Interpret the result with caution.');
+            }
+
+            if (narrowGap && second) {
+              const secD = B[second.cat];
+              lines.push(lang === 'es'
+                ? `La diferencia con la segunda categoría (${secD.label}, ${second.pct}%) es estrecha, por lo que ambas deben revisarse.`
+                : `The gap with the second category (${secD.label}, ${second.pct}%) is narrow, so both should be reviewed.`);
+            }
+
+            return (
+              <div style={{
+                padding: '13px 16px', borderRadius: 10,
+                background: T.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)',
+                border: `1px solid ${T.border}`,
+                animation: 'slideIn 0.5s ease',
+              }}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700, color: T.textMuted,
+                  textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8,
+                }}>
+                  {lang === 'es' ? 'Interpretación del resultado' : 'Result interpretation'}
+                </div>
+                <p style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.65, margin: 0 }}>
+                  {lines.join(' ')}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Exportar PDF — siempre visible cuando hay resultados */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>

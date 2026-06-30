@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import re
+import unicodedata
+from collections import Counter
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -30,6 +33,69 @@ from flask_cors import CORS
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 from predictor import Predictor
+
+# ---------------------------------------------------------------------------
+# Validación de entrada — términos radiológicos mínimos requeridos
+# ---------------------------------------------------------------------------
+_MEDICAL_TERMS = frozenset({
+    'mamografia', 'mama', 'mamario', 'mamaria', 'mamarias',
+    'bilateral', 'craneal', 'craneo', 'caudal', 'oblicua',
+    'tejido', 'fibroglandular', 'densidad',
+    'nodulo', 'nodulos', 'masa', 'masas',
+    'calcificacion', 'calcificaciones',
+    'microcalcificacion', 'microcalcificaciones',
+    'asimetria', 'distorsion', 'arquitectural',
+    'ganglio', 'axila', 'piel', 'pezon',
+    'lesion', 'lesiones', 'quiste', 'quistes',
+    'benigno', 'benigna', 'sospechoso', 'sospechosa',
+    'hallazgo', 'hallazgos', 'parenquima', 'glandular',
+    'areola', 'espiculado', 'espiculada', 'maligno', 'maligna',
+    'retraccion',
+})
+
+
+def _validate_text(text: str):
+    """Devuelve (ok: bool, error: str | None)."""
+    if len(text) < 80:
+        return False, (
+            "El texto es demasiado corto. "
+            "Ingresa las observaciones completas del reporte mamográfico."
+        )
+
+    t = text.lower()
+    t = unicodedata.normalize("NFKD", t)
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = re.sub(r"[^a-z0-9\s]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    words = t.split()
+
+    if len(words) < 10:
+        return False, (
+            "El texto tiene muy pocas palabras. "
+            "Ingresa las observaciones completas del reporte mamográfico."
+        )
+
+    unique = set(words)
+    if len(unique) < 6:
+        return False, (
+            "El texto es repetitivo y no contiene vocabulario suficiente "
+            "para generar una predicción confiable."
+        )
+
+    most_freq = Counter(words).most_common(1)[0][1]
+    if most_freq / len(words) > 0.5:
+        return False, (
+            "El texto contiene repeticiones excesivas. "
+            "Ingresa las observaciones reales del reporte mamográfico."
+        )
+
+    if sum(1 for w in unique if w in _MEDICAL_TERMS) < 2:
+        return False, (
+            "El texto no contiene suficiente vocabulario radiológico "
+            "para generar una predicción confiable."
+        )
+
+    return True, None
 
 # ---------------------------------------------------------------------------
 # Rutas — relativas a este archivo, dentro del repositorio
@@ -98,6 +164,10 @@ def predict():
 
     if not text:
         return jsonify({"error": "text requerido"}), 400
+
+    ok, err_msg = _validate_text(text)
+    if not ok:
+        return jsonify({"error": err_msg}), 400
 
     try:
         if mode == "binary":

@@ -153,6 +153,17 @@ function App() {
     const inputText = typeof overrideText === 'string' ? overrideText : text;
     if (!inputText.trim() || loading) return;
     if (overrideText) setText(overrideText);
+
+    const validation = window.validateRadiologicalText(inputText);
+    if (!validation.valid) {
+      setError(
+        lang === 'es'
+          ? 'Ingresa el texto de observaciones de un reporte mamográfico. El texto actual es demasiado corto o no contiene suficiente vocabulario radiológico para generar una predicción confiable.'
+          : 'Please enter the observations text from a mammography report. The current text is too short or does not contain sufficient radiological vocabulary for a reliable prediction.'
+      );
+      return;
+    }
+
     setLoading(true);
     setResults(null);
     setRawScores(null);

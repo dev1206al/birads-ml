@@ -20,7 +20,6 @@ function BinaryResult({ result, lang, T, onExport }) {
   if (!result) return null;
 
   const isPositive  = result.prediction === 1;
-  const isDemoMode  = !!result.demo;
   const confidence  = result.confidence || 0;
   const lowConf     = confidence < 65;
   // Falsos negativos ≈ 100 - recall. Si recall no viene, usamos 84% (valor del mejor modelo B)
@@ -439,19 +438,6 @@ function BinaryResult({ result, lang, T, onExport }) {
           })()}
         </p>
       </div>
-
-      {/* ─── Nota de demo ───────────────────────────────────────────────── */}
-      {isDemoMode && (
-        <div style={{
-          padding: '8px 13px', borderRadius: 8, fontSize: 11.5,
-          background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)',
-          color: '#d97706',
-        }}>
-          {lang === 'es'
-            ? '⚠ Resultado de demostración — backend no conectado'
-            : '⚠ Demo result — backend not connected'}
-        </div>
-      )}
 
       {/* ─── Exportar PDF ───────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>

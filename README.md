@@ -1,5 +1,7 @@
 # BI-RADS-ML
 
+[![Tests](https://github.com/dev1206al/birads-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/dev1206al/birads-ml/actions/workflows/tests.yml)
+
 Aplicación web experimental que clasifica texto libre de reportes mamográficos en español mediante **TF-IDF y aprendizaje automático**. El proyecto integra el flujo completo: preparación de datos, evaluación de modelos, API de inferencia, interfaz bilingüe y despliegue con Docker.
 
 **[Probar la demo](https://birads-ml-uam-azc.al-miniserver.dev)** · [Ver el evento ICOKG 2026](https://ontologica.cs.buap.mx/icokg2026/)
@@ -140,6 +142,16 @@ Parámetros principales:
 | `model_key` | clave del catálogo | Modelo solicitado; es opcional |
 
 También están disponibles `GET /api/metrics` y `GET /api/catalog`.
+
+## Pruebas
+
+La suite comprueba el preprocesamiento, las validaciones de entrada y los principales contratos de la API con ambos modos de inferencia.
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions ejecuta estas pruebas automáticamente en cada `push` y `pull request`.
 
 ## Metodología y reproducibilidad
 
